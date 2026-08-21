@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0f14;
+  --color-surface: #12181f;
+  --color-surface-2: #1a222b;
+  --color-border: #232c37;
+  --color-text: #e6edf3;
+  --color-text-dim: #8b98a5;
+  --color-accent: #4fd1a5;
+  --color-accent-dim: #2f8f6d;
+  --color-warn: #f2b84b;
+  --color-danger: #f26d6d;
+  --color-upper: #6ea8fe;
+  --color-lower: #4fd1a5;
+  --color-mobility: #c792ea;
+  --color-core: #f2b84b;
+  --font-sans: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
+
+/* Larger tap targets + no iOS zoom-on-focus */
+input, select, textarea, button {
+  font-size: 16px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
