@@ -11,6 +11,7 @@ export function CrossTrainingForm({ type }: { type: CrossTrainingType }) {
   const [duration, setDuration] = useState('')
   const [intensity, setIntensity] = useState<Intensity>('moderate')
   const [avgHR, setAvgHR] = useState('')
+  const [maxHR, setMaxHR] = useState('')
   const [avgPower, setAvgPower] = useState('')
   const [notes, setNotes] = useState('')
   const [saved, setSaved] = useState(false)
@@ -26,12 +27,14 @@ export function CrossTrainingForm({ type }: { type: CrossTrainingType }) {
       durationMin,
       intensity: isBike ? undefined : intensity,
       avgHR: avgHR ? parseInt(avgHR, 10) : undefined,
+      maxHR: maxHR ? parseInt(maxHR, 10) : undefined,
       avgPower: isBike && avgPower ? parseInt(avgPower, 10) : undefined,
       notes: notes || undefined,
       source: 'manual',
     })
     setDuration('')
     setAvgHR('')
+    setMaxHR('')
     setAvgPower('')
     setNotes('')
     setSaved(true)
@@ -62,9 +65,12 @@ export function CrossTrainingForm({ type }: { type: CrossTrainingType }) {
       )}
 
       <div className="flex gap-2">
-        <NumberField label="Avg HR (optional)" value={avgHR} onChange={(e) => setAvgHR(e.target.value)} className="flex-1" />
-        {isBike && <NumberField label="Avg power W (optional)" value={avgPower} onChange={(e) => setAvgPower(e.target.value)} className="flex-1" />}
+        <NumberField label="Avg BPM (optional)" value={avgHR} onChange={(e) => setAvgHR(e.target.value)} className="flex-1" />
+        <NumberField label="Max BPM (optional)" value={maxHR} onChange={(e) => setMaxHR(e.target.value)} className="flex-1" />
       </div>
+      {isBike && (
+        <NumberField label="Avg power W (optional)" value={avgPower} onChange={(e) => setAvgPower(e.target.value)} />
+      )}
 
       <TextField label="Notes (intervals, how it felt, etc.)" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
 

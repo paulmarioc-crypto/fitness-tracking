@@ -18,6 +18,7 @@ export function Today() {
   const todaysSessions = useLiveQuery(() => db.sessions.where({ date: today }).toArray(), [today])
   const todaysCrossTraining = useLiveQuery(() => db.crossTraining.where({ date: today }).toArray(), [today])
   const todaysCheckin = useLiveQuery(() => db.healthCheckins.where({ date: today }).first(), [today])
+  const todaysSleep = useLiveQuery(() => db.sleep.where({ date: today }).first(), [today])
 
   const [flags, setFlags] = useState<HealthFlagStatus>()
   useEffect(() => {
@@ -74,16 +75,17 @@ export function Today() {
 
         <div>
           <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Log cross-training</h2>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <Button variant="secondary" onClick={() => navigate('/train?tab=bike')}>🚴 Bike</Button>
             <Button variant="secondary" onClick={() => navigate('/train?tab=soccer')}>⚽ Soccer</Button>
             <Button variant="secondary" onClick={() => navigate('/train?tab=volleyball')}>🏐 Volleyball</Button>
+            <Button variant="secondary" onClick={() => navigate('/train?tab=sleep')}>😴 Sleep</Button>
           </div>
         </div>
 
         <QuickCheckin defaultDate={today} />
 
-        {(todaysSessions?.length || todaysCrossTraining?.length) ? (
+        {(todaysSessions?.length || todaysCrossTraining?.length || todaysSleep) ? (
           <div>
             <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Logged today</h2>
             <div className="flex flex-col gap-2">
@@ -99,6 +101,16 @@ export function Today() {
                   <span className="text-sm text-text-dim">{c.durationMin} min</span>
                 </Card>
               ))}
+              {todaysSleep && (
+                <Card className="flex items-center justify-between py-2.5">
+                  <span>😴 Sleep</span>
+                  <span className="text-sm text-text-dim">
+                    {Math.floor(todaysSleep.sleepDurationMin / 60)}h {todaysSleep.sleepDurationMin % 60}m
+                    {todaysSleep.hrv !== undefined ? ` · HRV ${todaysSleep.hrv}` : ''}
+                    {todaysSleep.restingHR !== undefined ? ` · RHR ${todaysSleep.restingHR}` : ''}
+                  </span>
+                </Card>
+              )}
             </div>
           </div>
         ) : null}

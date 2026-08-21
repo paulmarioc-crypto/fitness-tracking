@@ -25,7 +25,7 @@ function download(filename: string, content: string, mime: string) {
 }
 
 async function getAllData() {
-  const [exercises, dayTemplates, sessions, sessionExercises, sets, crossTraining, healthCheckins, bodyWeight] = await Promise.all([
+  const [exercises, dayTemplates, sessions, sessionExercises, sets, crossTraining, healthCheckins, bodyWeight, sleep] = await Promise.all([
     db.exercises.toArray(),
     db.dayTemplates.toArray(),
     db.sessions.toArray(),
@@ -34,8 +34,9 @@ async function getAllData() {
     db.crossTraining.toArray(),
     db.healthCheckins.toArray(),
     db.bodyWeight.toArray(),
+    db.sleep.toArray(),
   ])
-  return { exercises, dayTemplates, sessions, sessionExercises, sets, crossTraining, healthCheckins, bodyWeight }
+  return { exercises, dayTemplates, sessions, sessionExercises, sets, crossTraining, healthCheckins, bodyWeight, sleep }
 }
 
 export async function exportAllAsJSON() {
@@ -89,4 +90,13 @@ export async function exportHealthCheckinsAsCSV() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((c) => ({ ...c }))
   download(`health-checkins-${new Date().toISOString().slice(0, 10)}.csv`, toCSV(rows), 'text/csv')
+}
+
+export async function exportSleepAsCSV() {
+  const { sleep } = await getAllData()
+  const rows = sleep
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((s) => ({ ...s }))
+  download(`sleep-${new Date().toISOString().slice(0, 10)}.csv`, toCSV(rows), 'text/csv')
 }

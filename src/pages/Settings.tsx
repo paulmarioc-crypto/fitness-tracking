@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/schema'
-import { exportAllAsJSON, exportSetsAsCSV, exportCrossTrainingAsCSV, exportHealthCheckinsAsCSV } from '../lib/export'
+import { exportAllAsJSON, exportSetsAsCSV, exportCrossTrainingAsCSV, exportHealthCheckinsAsCSV, exportSleepAsCSV } from '../lib/export'
 import { Shell } from '../components/layout/Shell'
 import { Card, Button } from '../components/ui'
 
@@ -14,6 +14,7 @@ export function Settings() {
     crossTraining: await db.crossTraining.count(),
     checkins: await db.healthCheckins.count(),
     bodyWeight: await db.bodyWeight.count(),
+    sleep: await db.sleep.count(),
   }))
 
   async function resetAllData() {
@@ -26,6 +27,7 @@ export function Settings() {
       db.crossTraining.clear(),
       db.healthCheckins.clear(),
       db.bodyWeight.clear(),
+      db.sleep.clear(),
     ])
     window.location.reload()
   }
@@ -46,6 +48,7 @@ export function Settings() {
               <li>{counts.crossTraining} cross-training entries</li>
               <li>{counts.checkins} health check-ins</li>
               <li>{counts.bodyWeight} body-weight entries</li>
+              <li>{counts.sleep} sleep entries</li>
             </ul>
           )}
         </Card>
@@ -56,6 +59,7 @@ export function Settings() {
           <Button variant="secondary" onClick={() => exportSetsAsCSV()}>Export workout sets (CSV)</Button>
           <Button variant="secondary" onClick={() => exportCrossTrainingAsCSV()}>Export cross-training (CSV)</Button>
           <Button variant="secondary" onClick={() => exportHealthCheckinsAsCSV()}>Export health check-ins (CSV)</Button>
+          <Button variant="secondary" onClick={() => exportSleepAsCSV()}>Export sleep (CSV)</Button>
         </Card>
 
         <Card>

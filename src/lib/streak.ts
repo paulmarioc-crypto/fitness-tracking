@@ -11,21 +11,23 @@ export interface StreakInfo {
 
 /**
  * A day counts toward the streak if the user logged *anything* that day:
- * a completed session, a cross-training entry, or a health check-in.
+ * a completed session, a cross-training entry, a health check-in, or sleep.
  * Intentionally not tied to hitting every planned exercise — the point is
  * to nudge re-engagement, not gate the data behind a perfect day.
  */
 export async function computeStreak(): Promise<StreakInfo> {
-  const [sessions, crossTraining, checkins] = await Promise.all([
+  const [sessions, crossTraining, checkins, sleep] = await Promise.all([
     db.sessions.where('status').equals('completed').toArray(),
     db.crossTraining.toArray(),
     db.healthCheckins.toArray(),
+    db.sleep.toArray(),
   ])
 
   const dateSet = new Set<string>()
   sessions.forEach((s) => dateSet.add(s.date))
   crossTraining.forEach((c) => dateSet.add(c.date))
   checkins.forEach((c) => dateSet.add(c.date))
+  sleep.forEach((s) => dateSet.add(s.date))
 
   const activeDates = Array.from(dateSet).sort()
   if (activeDates.length === 0) {

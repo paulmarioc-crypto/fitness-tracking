@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { db } from '../db/schema'
 import { addBodyWeight, todayStr } from '../db/queries'
-import { getWeeklyVolume, getBodyWeightTrend, getAdherence, type WeeklyVolumePoint, type BodyWeightPoint, type AdherencePoint } from '../lib/analytics'
+import { getWeeklyVolume, getBodyWeightTrend, getAdherence, getSleepTrend, type WeeklyVolumePoint, type BodyWeightPoint, type AdherencePoint, type SleepPoint } from '../lib/analytics'
 import { fmtDate } from '../lib/dates'
 import { Shell } from '../components/layout/Shell'
 import { Card, Button, NumberField, EmptyState } from '../components/ui'
@@ -19,12 +19,18 @@ export function Progress() {
   const [weeklyVolume, setWeeklyVolume] = useState<WeeklyVolumePoint[]>([])
   const [bodyWeightTrend, setBodyWeightTrend] = useState<BodyWeightPoint[]>([])
   const [adherence, setAdherence] = useState<AdherencePoint[]>([])
+  const [sleepTrend, setSleepTrend] = useState<SleepPoint[]>([])
+  const sleepEntries = useLiveQuery(() => db.sleep.toArray(), [])
 
   useEffect(() => {
     getWeeklyVolume().then(setWeeklyVolume)
     getBodyWeightTrend().then(setBodyWeightTrend)
     getAdherence().then(setAdherence)
   }, [bodyWeightEntries])
+
+  useEffect(() => {
+    getSleepTrend().then(setSleepTrend)
+  }, [sleepEntries])
 
   const dayTypes = [...new Set(weeklyVolume.flatMap((w) => Object.keys(w.byDayType)))]
   const volumeChartData = weeklyVolume.map((w) => ({ week: fmtDate(w.week), ...w.byDayType }))
@@ -35,6 +41,7 @@ export function Progress() {
     skipped: a.skippedExercises,
     planned: a.plannedExercises,
   }))
+  const sleepChartData = sleepTrend.map((p) => ({ date: fmtDate(p.date), hours: p.sleepDurationHrs, hrv: p.hrv, restingHR: p.restingHR }))
 
   return (
     <Shell title="Progress">
@@ -115,6 +122,40 @@ export function Progress() {
             </Card>
           )}
           <LogWeightForm />
+        </div>
+
+        <div>
+          <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Sleep &amp; recovery</h2>
+          {sleepChartData.length === 0 ? (
+            <EmptyState title="No sleep logged yet" hint="Log it from Train → Sleep." />
+          ) : (
+            <>
+              <Card className="mb-2">
+                <ResponsiveContainer width="100%" height={160}>
+                  <BarChart data={sleepChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#232c37" />
+                    <XAxis dataKey="date" stroke="#8b98a5" fontSize={11} />
+                    <YAxis stroke="#8b98a5" fontSize={11} width={28} />
+                    <Tooltip contentStyle={{ background: '#1a222b', border: '1px solid #232c37', borderRadius: 8 }} />
+                    <Bar dataKey="hours" fill="#6ea8fe" name="Sleep (hrs)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+              <Card>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={sleepChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#232c37" />
+                    <XAxis dataKey="date" stroke="#8b98a5" fontSize={11} />
+                    <YAxis stroke="#8b98a5" fontSize={11} width={32} />
+                    <Tooltip contentStyle={{ background: '#1a222b', border: '1px solid #232c37', borderRadius: 8 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Line type="monotone" dataKey="hrv" stroke="#4fd1a5" strokeWidth={2} dot={{ r: 3 }} name="HRV (ms)" connectNulls />
+                    <Line type="monotone" dataKey="restingHR" stroke="#f26d6d" strokeWidth={2} dot={{ r: 3 }} name="Resting HR" connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Card>
+            </>
+          )}
         </div>
       </div>
     </Shell>

@@ -8,6 +8,7 @@ import type {
   CrossTrainingEntry,
   HealthCheckin,
   BodyWeightEntry,
+  SleepEntry,
 } from '../types'
 
 export class TrackerDB extends Dexie {
@@ -19,6 +20,7 @@ export class TrackerDB extends Dexie {
   crossTraining!: Table<CrossTrainingEntry, string>
   healthCheckins!: Table<HealthCheckin, string>
   bodyWeight!: Table<BodyWeightEntry, string>
+  sleep!: Table<SleepEntry, string>
 
   constructor() {
     super('athletic-tracker')
@@ -32,6 +34,10 @@ export class TrackerDB extends Dexie {
       crossTraining: 'id, date, type, source',
       healthCheckins: 'id, date',
       bodyWeight: 'id, date, source',
+    })
+
+    this.version(2).stores({
+      sleep: 'id, date, source',
     })
   }
 }

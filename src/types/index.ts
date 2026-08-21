@@ -88,6 +88,7 @@ export interface CrossTrainingEntry {
   durationMin: number
   intensity?: Intensity
   avgHR?: number
+  maxHR?: number
   avgPower?: number
   notes?: string
   source: DataSource
@@ -108,5 +109,16 @@ export interface BodyWeightEntry {
   id: string
   date: string
   weightLb: number
+  source: DataSource
+}
+
+/** Simple manually-entered sleep summary, as read off a wearable (e.g. Fitbit). */
+export interface SleepEntry {
+  id: string
+  date: string // the morning this sleep is attributed to
+  sleepDurationMin: number
+  hrv?: number // ms
+  restingHR?: number // bpm
+  notes?: string
   source: DataSource
 }

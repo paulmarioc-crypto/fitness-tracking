@@ -4,7 +4,7 @@ import { db } from '../db/schema'
 import { computeStreak, type StreakInfo } from '../lib/streak'
 
 export function useStreak(): StreakInfo | undefined {
-  const tick = useLiveQuery(() => Promise.all([db.sessions.toArray(), db.crossTraining.toArray(), db.healthCheckins.toArray()]))
+  const tick = useLiveQuery(() => Promise.all([db.sessions.toArray(), db.crossTraining.toArray(), db.healthCheckins.toArray(), db.sleep.toArray()]))
   const [streak, setStreak] = useState<StreakInfo>()
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import type {
   CrossTrainingEntry,
   HealthCheckin,
   BodyWeightEntry,
+  SleepEntry,
   WeightUnit,
 } from '../types'
 
@@ -148,4 +149,16 @@ export async function addBodyWeight(data: Omit<BodyWeightEntry, 'id'>) {
 
 export async function deleteBodyWeight(id: string) {
   await db.bodyWeight.delete(id)
+}
+
+// ---- Sleep (one per day, upsert) ----
+export async function upsertSleep(data: Omit<SleepEntry, 'id'>) {
+  const existing = await db.sleep.where({ date: data.date }).first()
+  if (existing) {
+    await db.sleep.update(existing.id, data)
+    return { ...existing, ...data }
+  }
+  const entry: SleepEntry = { ...data, id: uid() }
+  await db.sleep.add(entry)
+  return entry
 }

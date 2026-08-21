@@ -3,12 +3,15 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/schema'
 import { completeSession, addSessionExercise } from '../db/queries'
 import { Shell } from '../components/layout/Shell'
-import { Card, Button, SegmentedControl, EmptyState, Badge } from '../components/ui'
+import { Card, Button, EmptyState, Badge } from '../components/ui'
 import { SessionExerciseCard } from '../components/SessionExerciseCard'
 import { CrossTrainingForm } from '../components/CrossTrainingForm'
+import { SleepForm } from '../components/SleepForm'
 import { fmtDate } from '../lib/dates'
 import { useState } from 'react'
 import type { CrossTrainingType } from '../types'
+
+type Tab = 'gym' | CrossTrainingType | 'sleep'
 
 export function Train() {
   const [params, setParams] = useSearchParams()
@@ -16,22 +19,33 @@ export function Train() {
 
   if (sessionId) return <SessionView sessionId={sessionId} />
 
-  const tab = (params.get('tab') as 'gym' | CrossTrainingType) ?? 'gym'
+  const tab = (params.get('tab') as Tab) ?? 'gym'
+
+  const TABS: { value: Tab; label: string }[] = [
+    { value: 'gym', label: 'Gym' },
+    { value: 'bike', label: 'Bike' },
+    { value: 'soccer', label: 'Soccer' },
+    { value: 'volleyball', label: 'V-ball' },
+    { value: 'sleep', label: 'Sleep' },
+  ]
 
   return (
     <Shell title="Train">
       <div className="flex flex-col gap-4">
-        <SegmentedControl
-          value={tab}
-          onChange={(v) => setParams({ tab: v })}
-          options={[
-            { value: 'gym', label: 'Gym' },
-            { value: 'bike', label: 'Bike' },
-            { value: 'soccer', label: 'Soccer' },
-            { value: 'volleyball', label: 'V-ball' },
-          ]}
-        />
-        {tab === 'gym' ? <ResumeSessions /> : <CrossTrainingForm type={tab} />}
+        <div className="grid grid-cols-5 gap-1 bg-surface-2 rounded-xl p-1 border border-border">
+          {TABS.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setParams({ tab: t.value })}
+              className={`px-1 py-2 rounded-lg text-xs font-medium transition ${tab === t.value ? 'bg-accent text-black' : 'text-text-dim hover:text-text'}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {tab === 'gym' && <ResumeSessions />}
+        {tab === 'sleep' && <SleepForm />}
+        {(tab === 'bike' || tab === 'soccer' || tab === 'volleyball') && <CrossTrainingForm type={tab} />}
       </div>
     </Shell>
   )

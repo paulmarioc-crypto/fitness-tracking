@@ -182,16 +182,18 @@ export async function getCrossTrainingWeekly(): Promise<CrossTrainingWeekPoint[]
   return Array.from(weekMap.values()).sort((a, b) => a.week.localeCompare(b.week))
 }
 
-export interface BikeSessionPoint {
+export interface HRSessionPoint {
   date: string
   durationMin: number
   avgHR?: number
+  maxHR?: number
   avgPower?: number
 }
 
-export async function getBikeTrend(): Promise<BikeSessionPoint[]> {
-  const entries = await db.crossTraining.where('type').equals('bike').sortBy('date')
-  return entries.map((e) => ({ date: e.date, durationMin: e.durationMin, avgHR: e.avgHR, avgPower: e.avgPower }))
+/** Per-session HR (and, for bike, power) trend for one cross-training type. */
+export async function getHRTrend(type: CrossTrainingType): Promise<HRSessionPoint[]> {
+  const entries = await db.crossTraining.where('type').equals(type).sortBy('date')
+  return entries.map((e) => ({ date: e.date, durationMin: e.durationMin, avgHR: e.avgHR, maxHR: e.maxHR, avgPower: e.avgPower }))
 }
 
 export interface IntensityDistribution {
@@ -222,4 +224,21 @@ export interface WeeklyTotalVolumePoint {
 export async function getWeeklyTotalGymVolume(): Promise<WeeklyTotalVolumePoint[]> {
   const weekly = await getWeeklyVolume()
   return weekly.map((w) => ({ week: w.week, totalVolume: Object.values(w.byDayType).reduce((sum, v) => sum + v, 0) }))
+}
+
+export interface SleepPoint {
+  date: string
+  sleepDurationHrs: number
+  hrv?: number
+  restingHR?: number
+}
+
+export async function getSleepTrend(): Promise<SleepPoint[]> {
+  const entries = await db.sleep.orderBy('date').toArray()
+  return entries.map((e) => ({
+    date: e.date,
+    sleepDurationHrs: Math.round((e.sleepDurationMin / 60) * 10) / 10,
+    hrv: e.hrv,
+    restingHR: e.restingHR,
+  }))
 }

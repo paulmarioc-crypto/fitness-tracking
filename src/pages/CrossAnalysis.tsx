@@ -2,30 +2,29 @@ import { useEffect, useState } from 'react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import {
   getCrossTrainingWeekly,
-  getBikeTrend,
+  getHRTrend,
   getIntensityDistribution,
   getWeeklyTotalGymVolume,
   type CrossTrainingWeekPoint,
-  type BikeSessionPoint,
+  type HRSessionPoint,
   type IntensityDistribution,
   type WeeklyTotalVolumePoint,
 } from '../lib/analytics'
 import { fmtDate } from '../lib/dates'
 import { Shell } from '../components/layout/Shell'
 import { Card, EmptyState } from '../components/ui'
+import type { CrossTrainingType } from '../types'
 
 const TICK = { fontSize: 11, stroke: '#8b98a5' }
 const TOOLTIP_STYLE = { background: '#1a222b', border: '1px solid #232c37', borderRadius: 8 }
 
 export function CrossAnalysis() {
   const [weekly, setWeekly] = useState<CrossTrainingWeekPoint[]>([])
-  const [bike, setBike] = useState<BikeSessionPoint[]>([])
   const [intensity, setIntensity] = useState<IntensityDistribution[]>([])
   const [gymVolume, setGymVolume] = useState<WeeklyTotalVolumePoint[]>([])
 
   useEffect(() => {
     getCrossTrainingWeekly().then(setWeekly)
-    getBikeTrend().then(setBike)
     getIntensityDistribution(['soccer', 'volleyball']).then(setIntensity)
     getWeeklyTotalGymVolume().then(setGymVolume)
   }, [])
@@ -36,7 +35,6 @@ export function CrossAnalysis() {
     Soccer: w.byType.soccer.durationMin,
     Volleyball: w.byType.volleyball.durationMin,
   }))
-  const bikeData = bike.map((b) => ({ date: fmtDate(b.date), power: b.avgPower, hr: b.avgHR }))
   const intensityData = intensity.map((i) => ({ type: i.type, Easy: i.easy, Moderate: i.moderate, Hard: i.hard }))
   const gymVolumeData = gymVolume.map((g) => ({ week: fmtDate(g.week), volume: Math.round(g.totalVolume) }))
 
@@ -84,26 +82,9 @@ export function CrossAnalysis() {
           )}
         </div>
 
-        <div>
-          <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Bike: HR &amp; power per session</h2>
-          {bikeData.length === 0 ? (
-            <EmptyState title="No bike sessions logged yet" />
-          ) : (
-            <Card>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={bikeData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#232c37" />
-                  <XAxis dataKey="date" {...TICK} />
-                  <YAxis {...TICK} width={36} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Line type="monotone" dataKey="power" stroke="#f2b84b" strokeWidth={2} name="Avg power (W)" connectNulls />
-                  <Line type="monotone" dataKey="hr" stroke="#f26d6d" strokeWidth={2} name="Avg HR" connectNulls />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-          )}
-        </div>
+        <HRTrendSection type="bike" title="Bike: HR & power per session" showPower />
+        <HRTrendSection type="soccer" title="Soccer: HR per session" />
+        <HRTrendSection type="volleyball" title="Volleyball: HR per session" />
 
         <div>
           <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Soccer / volleyball intensity mix</h2>
@@ -128,5 +109,40 @@ export function CrossAnalysis() {
         </div>
       </div>
     </Shell>
+  )
+}
+
+function HRTrendSection({ type, title, showPower = false }: { type: CrossTrainingType; title: string; showPower?: boolean }) {
+  const [trend, setTrend] = useState<HRSessionPoint[]>([])
+
+  useEffect(() => {
+    getHRTrend(type).then(setTrend)
+  }, [type])
+
+  const data = trend.map((t) => ({ date: fmtDate(t.date), avgHR: t.avgHR, maxHR: t.maxHR, power: t.avgPower }))
+  const hasData = data.length > 0
+
+  return (
+    <div>
+      <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">{title}</h2>
+      {!hasData ? (
+        <EmptyState title={`No ${type} sessions logged yet`} />
+      ) : (
+        <Card>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#232c37" />
+              <XAxis dataKey="date" {...TICK} />
+              <YAxis {...TICK} width={36} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="avgHR" stroke="#f26d6d" strokeWidth={2} name="Avg BPM" connectNulls />
+              <Line type="monotone" dataKey="maxHR" stroke="#f2b84b" strokeWidth={2} name="Max BPM" connectNulls />
+              {showPower && <Line type="monotone" dataKey="power" stroke="#6ea8fe" strokeWidth={2} name="Avg power (W)" connectNulls />}
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
+    </div>
   )
 }
