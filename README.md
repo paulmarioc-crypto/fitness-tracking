@@ -96,11 +96,20 @@ workout done correctly" shows up in a few places:
 
 ## Pages
 
-- **Today** — streak, program week/block/deload banner, health-flag banner,
-  one-tap session start (auto-resolved to the current block), quick
-  cross-training log, daily check-in.
-- **Train** — active session logging (tap-to-expand exercise, target
-  sets/reps/RIR + suggested weight, inline set editing), bike/soccer/
+- **Today (dashboard)** — streak, program week/block/deload banner,
+  health-flag banner, then **this week's four workouts** (Workout 1 · Upper A
+  through Workout 4 · Lower B, per the plan's Mon–Thu skeleton) each with its
+  weekday, exercise count and status (not started / in progress / completed)
+  plus an "N of 4 done" counter. Below that: quick cross-training log and the
+  daily check-in.
+- **Workout detail** (tap any workout on the dashboard) — the prescription
+  *before* you start: every exercise numbered, with its sets × reps shown
+  large, the target RIR, the focus cue, and the suggested load for this
+  session. Deload weeks show already-reduced set counts. Buttons to start,
+  resume, or review a completed session.
+- **Train** — active session logging (each exercise shows its sets × reps and
+  target RIR up front plus "Set 2 of 3" progress, with the suggested weight
+  and inline per-set editing), bike/soccer/
   volleyball quick-log forms (with avg/max BPM; bike also shows the
   Monday/Friday/Sunday 10-15 min post-ride mobility checklist from
   `src/lib/bikeAddOns.ts`), and a Sleep tab (duration, HRV, resting HR).

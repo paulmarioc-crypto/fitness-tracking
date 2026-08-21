@@ -35,6 +35,15 @@ export function computeProgramWeek(startDate: string | null, today = todayStr())
   }
 }
 
+/**
+ * The plan's Week 4/8/12 rule: reduce lifting volume ~25-30%. Shared by the
+ * workout preview and by session creation so the number you're shown before
+ * starting is exactly the number you get.
+ */
+export function deloadAdjustedSets(targetSets: number, isDeloadWeek: boolean): number {
+  return isDeloadWeek ? Math.max(1, Math.round(targetSets * 0.72)) : targetSets
+}
+
 export async function getProgramStartDate(): Promise<string | null> {
   const settings = await db.programSettings.get('singleton')
   return settings?.startDate ?? null

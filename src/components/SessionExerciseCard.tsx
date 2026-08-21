@@ -40,13 +40,18 @@ export function SessionExerciseCard({ sessionExercise, isDeloadWeek }: { session
     setReps('')
   }
 
-  const target = sessionExercise.targetSets ?? undefined
+  const targetSets = sessionExercise.targetSets
   const repRange = sessionExercise.targetRepRange
-  const targetLine = sessionExercise.prescriptionLabel
-    ? `Target: ${target ? `${target} × ` : ''}${sessionExercise.prescriptionLabel.replace(/^\d+\s*×\s*/, '')}`
-    : target && repRange
-      ? `Target: ${target} × ${repRange.min}–${repRange.max}`
+  // prescriptionLabel keeps the plan's exact wording (tempo, "/ leg", holds);
+  // strip its leading "N ×" so the session's own (deload-adjusted) set count wins.
+  const repsLabel = sessionExercise.prescriptionLabel
+    ? sessionExercise.prescriptionLabel.replace(/^\s*\d+(–\d+)?\s*×\s*/, '')
+    : repRange
+      ? `${repRange.min}–${repRange.max}`
       : null
+  const prescription = targetSets && repsLabel ? `${targetSets} × ${repsLabel}` : repsLabel
+  const targetRir = sessionExercise.targetRIRRange
+  const loggedCount = sets?.length ?? 0
 
   const accuracy = sets ? averageScore(sets.map((s) => computeSetScore(s.weight, s.reps, sessionExercise.targetRepRange, sessionExercise.suggestedWeight))) : null
   const accuracyTone = accuracy === null ? 'default' : accuracy >= 80 ? 'accent' : accuracy >= 50 ? 'warn' : 'danger'
@@ -61,10 +66,15 @@ export function SessionExerciseCard({ sessionExercise, isDeloadWeek }: { session
             {sessionExercise.completed && !sessionExercise.skipped && <Badge tone="accent">Done</Badge>}
             {accuracy !== null && <Badge tone={accuracyTone}>{accuracy}% accurate</Badge>}
           </p>
-          <p className="text-xs text-text-dim">
-            {sets?.length ?? 0} set{sets?.length === 1 ? '' : 's'} logged
-            {targetLine ? ` · ${targetLine}` : ''}
-            {sessionExercise.targetRIRRange ? ` @${sessionExercise.targetRIRRange.min}-${sessionExercise.targetRIRRange.max} RIR` : ''}
+          {prescription && (
+            <p className="text-base font-semibold text-accent leading-tight mt-0.5">
+              {prescription}
+              {targetRir && <span className="text-sm font-normal text-text-dim"> · leave {targetRir.min}–{targetRir.max} RIR</span>}
+            </p>
+          )}
+          <p className="text-xs text-text-dim mt-0.5">
+            {targetSets ? `Set ${Math.min(loggedCount + 1, targetSets)} of ${targetSets}` : `${loggedCount} set${loggedCount === 1 ? '' : 's'}`}
+            {loggedCount > 0 ? ` · ${loggedCount} logged` : ''}
           </p>
         </div>
         <span className="text-text-dim">{expanded ? '▲' : '▼'}</span>

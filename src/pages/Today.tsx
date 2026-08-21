@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/schema'
 import { startSession, todayStr, upsertHealthCheckin } from '../db/queries'
 import { computeProgramWeek } from '../lib/program'
+import { getWeekRange, buildWeekWorkouts, type WeekWorkout } from '../lib/weekPlan'
 import { getSessionAccuracy } from '../lib/analytics'
 import { getAddOnForDate } from '../lib/bikeAddOns'
 import { Shell } from '../components/layout/Shell'
@@ -28,16 +29,22 @@ export function Today() {
   const programWeek = computeProgramWeek(programSettings?.startDate ?? null, today)
   // Default to Block 1 until a program start date is set, so the app stays usable.
   const currentBlock = programWeek.block ?? 1
-  const blockTemplates = (templates ?? []).filter((t) => t.block === currentBlock)
+  const weekRange = getWeekRange(programSettings?.startDate ?? null, programWeek.week, today)
+
+  const weekSessions = useLiveQuery(
+    () => db.sessions.filter((s) => s.date >= weekRange.start && s.date <= weekRange.end).toArray(),
+    [weekRange.start, weekRange.end]
+  )
+  const weekWorkouts = buildWeekWorkouts(templates ?? [], weekSessions ?? [], currentBlock, weekRange)
+  const completedCount = weekWorkouts.filter((w) => w.status === 'completed').length
 
   const [flags, setFlags] = useState<HealthFlagStatus>()
   useEffect(() => {
     getHealthFlagStatus().then(setFlags)
   }, [todaysCheckin])
 
-  async function handleStart(templateId: string, name: string) {
-    const template = await db.dayTemplates.get(templateId)
-    const session = await startSession(template ?? null, name, today, programWeek.isDeloadWeek)
+  async function startCustom() {
+    const session = await startSession(null, 'Custom session', today, programWeek.isDeloadWeek)
     navigate(`/train?session=${session.id}`)
   }
 
@@ -86,24 +93,22 @@ export function Today() {
         )}
 
         <div>
-          <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Start a session</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {blockTemplates.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => handleStart(t.id, t.name)}
-                className="bg-surface border border-border rounded-xl p-3 text-left hover:border-accent transition"
-              >
-                <p className="font-medium">{t.name}</p>
-                <p className="text-xs text-text-dim">{t.exercises.length} exercises</p>
-              </button>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-text-dim uppercase tracking-wide">
+              {programWeek.week ? `Week ${programWeek.week} workouts` : 'This week’s workouts'}
+            </h2>
+            <span className="text-xs text-text-dim">{completedCount} of {weekWorkouts.length} done</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {weekWorkouts.map((w) => (
+              <WorkoutRow key={w.slot.index} workout={w} onOpen={() => navigate(`/workout/${encodeURIComponent(w.slot.dayType)}`)} />
             ))}
             <button
-              onClick={() => handleStart('', 'Custom session')}
+              onClick={startCustom}
               className="bg-surface border border-dashed border-border rounded-xl p-3 text-left hover:border-accent transition"
             >
-              <p className="font-medium">+ Custom</p>
-              <p className="text-xs text-text-dim">Pick exercises freely</p>
+              <p className="font-medium">+ Custom session</p>
+              <p className="text-xs text-text-dim">Pick exercises freely, outside the plan</p>
             </button>
           </div>
         </div>
@@ -203,6 +208,35 @@ function QuickCheckin({ defaultDate }: { defaultDate: string }) {
       />
       <Button onClick={save} className="w-full">{saved ? 'Saved ✓' : existing ? 'Update check-in' : 'Save check-in'}</Button>
     </Card>
+  )
+}
+
+function WorkoutRow({ workout, onOpen }: { workout: WeekWorkout; onOpen: () => void }) {
+  const { slot, template, status } = workout
+  const tone = status === 'completed' ? 'accent' : status === 'in_progress' ? 'warn' : 'default'
+  const label = status === 'completed' ? 'Completed' : status === 'in_progress' ? 'In progress' : 'Not started'
+
+  return (
+    <button
+      onClick={onOpen}
+      className={`bg-surface border rounded-xl p-3 text-left transition hover:border-accent ${status === 'completed' ? 'border-accent/40' : 'border-border'}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-medium">
+            Workout {slot.index} · {slot.dayType}
+          </p>
+          <p className="text-xs text-text-dim">
+            {slot.weekday}
+            {template ? ` · ${template.exercises.length} exercises` : ' · no template for this block'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge tone={tone}>{label}</Badge>
+          <span className="text-text-dim">›</span>
+        </div>
+      </div>
+    </button>
   )
 }
 

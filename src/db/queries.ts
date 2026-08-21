@@ -1,5 +1,6 @@
 import { db } from './schema'
 import { getLoadSuggestion } from '../lib/progression'
+import { deloadAdjustedSets } from '../lib/program'
 import type {
   Exercise,
   DayTemplate,
@@ -54,7 +55,7 @@ export async function startSession(dayTemplate: DayTemplate | null, dayTypeName:
     const sessionExercises: SessionExercise[] = await Promise.all(
       sorted.map(async (te) => {
         const exercise = await db.exercises.get(te.exerciseId)
-        const targetSets = isDeloadWeek ? Math.max(1, Math.round(te.targetSets * 0.72)) : te.targetSets
+        const targetSets = deloadAdjustedSets(te.targetSets, isDeloadWeek)
         const suggestion = exercise
           ? await getLoadSuggestion(te.exerciseId, exercise.category, te.targetRepRange, te.targetRIRRange, targetSets, isDeloadWeek)
           : null
