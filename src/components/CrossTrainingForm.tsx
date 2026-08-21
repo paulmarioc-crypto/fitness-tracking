@@ -4,7 +4,7 @@ import { todayStr } from '../db/queries'
 import { Card, Button, TextField, NumberField, SegmentedControl } from './ui'
 import type { CrossTrainingType, Intensity } from '../types'
 
-const LABELS: Record<CrossTrainingType, string> = { bike: 'Bike', soccer: 'Soccer', volleyball: 'Volleyball', other: 'Other' }
+const LABELS: Record<CrossTrainingType, string> = { bike: 'Bike', soccer: 'Soccer', volleyball: 'Volleyball', hiking: 'Hiking', other: 'Other' }
 
 export function CrossTrainingForm({ type }: { type: CrossTrainingType }) {
   const [date, setDate] = useState(todayStr())

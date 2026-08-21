@@ -9,6 +9,7 @@ import { toEmbedUrl } from '../lib/video'
 import { fmtDate } from '../lib/dates'
 import { Shell } from '../components/layout/Shell'
 import { Card, Button, TextField, EmptyState } from '../components/ui'
+import { ExerciseMediaUploader } from '../components/ExerciseMediaUploader'
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>()
@@ -46,6 +47,8 @@ export function ExerciseDetail() {
           <a href={exercise.videoUrl} target="_blank" rel="noreferrer" className="text-accent underline text-sm">Watch demo video ↗</a>
         )}
 
+        <ExerciseMediaUploader exerciseId={exercise.id} />
+
         <Card>
           <div className="flex items-center justify-between mb-2">
             <p className="capitalize text-text-dim text-sm">{exercise.category}{exercise.notes ? ` · ${exercise.notes}` : ''}</p>
@@ -57,6 +60,7 @@ export function ExerciseDetail() {
           {exercise.targetRIRRange && (
             <p className="text-sm">Target RIR: {exercise.targetRIRRange.min}–{exercise.targetRIRRange.max}</p>
           )}
+          {exercise.instructions && <p className="text-sm text-text-dim mt-2 whitespace-pre-wrap">{exercise.instructions}</p>}
         </Card>
 
         {editing && <EditForm exercise={exercise} onDone={() => setEditing(false)} />}
@@ -104,21 +108,38 @@ export function ExerciseDetail() {
   )
 }
 
-function EditForm({ exercise, onDone }: { exercise: { id: string; name: string; videoUrl?: string; targetRepRange?: { min: number; max: number } }; onDone: () => void }) {
+function EditForm({
+  exercise,
+  onDone,
+}: {
+  exercise: { id: string; name: string; videoUrl?: string; instructions?: string; targetRepRange?: { min: number; max: number } }
+  onDone: () => void
+}) {
   const [name, setName] = useState(exercise.name)
   const [videoUrl, setVideoUrl] = useState(exercise.videoUrl ?? '')
+  const [instructions, setInstructions] = useState(exercise.instructions ?? '')
   const [repMin, setRepMin] = useState(exercise.targetRepRange?.min ?? 8)
   const [repMax, setRepMax] = useState(exercise.targetRepRange?.max ?? 12)
 
   async function save() {
-    await updateExercise(exercise.id, { name, videoUrl: videoUrl || undefined, targetRepRange: { min: repMin, max: repMax } })
+    await updateExercise(exercise.id, { name, videoUrl: videoUrl || undefined, instructions: instructions || undefined, targetRepRange: { min: repMin, max: repMax } })
     onDone()
   }
 
   return (
     <Card className="flex flex-col gap-3">
       <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} />
-      <TextField label="Video URL" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} />
+      <TextField label="YouTube video URL (optional)" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} />
+      <label className="flex flex-col gap-1">
+        <span className="text-xs text-text-dim">How to execute (optional)</span>
+        <textarea
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          placeholder="Step-by-step cues, setup notes, common mistakes to avoid…"
+          className="bg-surface-2 border border-border rounded-lg px-3 py-2 w-full text-sm resize-none"
+          rows={4}
+        />
+      </label>
       <div className="flex gap-2">
         <TextField label="Rep min" type="number" value={repMin} onChange={(e) => setRepMin(Number(e.target.value))} />
         <TextField label="Rep max" type="number" value={repMax} onChange={(e) => setRepMax(Number(e.target.value))} />

@@ -1,12 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/schema'
 import { exportAllAsJSON, exportSetsAsCSV, exportCrossTrainingAsCSV, exportHealthCheckinsAsCSV, exportSleepAsCSV } from '../lib/export'
+import { computeProgramWeek, setProgramStartDate } from '../lib/program'
+import { todayStr } from '../db/queries'
 import { Shell } from '../components/layout/Shell'
-import { Card, Button } from '../components/ui'
+import { Card, Button, TextField } from '../components/ui'
 
 export function Settings() {
   const [confirmReset, setConfirmReset] = useState(false)
+  const programSettings = useLiveQuery(() => db.programSettings.get('singleton'), [])
+  const [startDate, setStartDate] = useState('')
+
+  useEffect(() => {
+    setStartDate(programSettings?.startDate ?? '')
+  }, [programSettings])
+
+  const preview = startDate ? computeProgramWeek(startDate, todayStr()) : null
   const counts = useLiveQuery(async () => ({
     exercises: await db.exercises.count(),
     sessions: await db.sessions.count(),
@@ -28,6 +38,8 @@ export function Settings() {
       db.healthCheckins.clear(),
       db.bodyWeight.clear(),
       db.sleep.clear(),
+      db.programSettings.clear(),
+      db.exerciseMedia.clear(),
     ])
     window.location.reload()
   }
@@ -35,6 +47,27 @@ export function Settings() {
   return (
     <Shell title="Settings">
       <div className="flex flex-col gap-4">
+        <Card className="flex flex-col gap-2">
+          <h2 className="font-medium mb-1">Program calendar</h2>
+          <p className="text-sm text-text-dim">
+            Set the date Block 1 / Week 1 begins (post-marathon, once walking/stairs are comfortable and there's no new swelling). This drives which
+            block's day templates show up and when deload-week suggestions kick in.
+          </p>
+          <TextField label="Block 1, Week 1 starts" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          {preview && (
+            <p className="text-sm text-text-dim">
+              Today would be Week {preview.week} · Block {preview.block} ({preview.blockLabel}){preview.isDeloadWeek ? ' · deload week' : ''}
+              {preview.pastProgram ? ' · past the 12-week program, still using Block 3' : ''}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <Button onClick={() => setProgramStartDate(startDate || null)}>Save</Button>
+            {programSettings?.startDate && (
+              <Button variant="ghost" onClick={() => setProgramStartDate(null)}>Clear</Button>
+            )}
+          </div>
+        </Card>
+
         <Card>
           <h2 className="font-medium mb-2">Your data</h2>
           <p className="text-sm text-text-dim">

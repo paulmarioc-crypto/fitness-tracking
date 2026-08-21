@@ -9,6 +9,8 @@ import type {
   HealthCheckin,
   BodyWeightEntry,
   SleepEntry,
+  ProgramSettings,
+  ExerciseMedia,
 } from '../types'
 
 export class TrackerDB extends Dexie {
@@ -21,6 +23,8 @@ export class TrackerDB extends Dexie {
   healthCheckins!: Table<HealthCheckin, string>
   bodyWeight!: Table<BodyWeightEntry, string>
   sleep!: Table<SleepEntry, string>
+  programSettings!: Table<ProgramSettings, string>
+  exerciseMedia!: Table<ExerciseMedia, string>
 
   constructor() {
     super('athletic-tracker')
@@ -39,6 +43,18 @@ export class TrackerDB extends Dexie {
     this.version(2).stores({
       sleep: 'id, date, source',
     })
+
+    // dayTemplates gained dayType/block/blockLabel (block: string -> number) —
+    // clear and let seedIfEmpty rebuild them in the new shape.
+    this.version(3)
+      .stores({
+        dayTemplates: 'id, name, dayType, block, archived',
+        programSettings: 'id',
+        exerciseMedia: 'exerciseId',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('dayTemplates').clear()
+      })
   }
 }
 

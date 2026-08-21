@@ -1,17 +1,31 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/schema'
 import { addSet, updateSet, deleteSet, setSessionExerciseStatus } from '../db/queries'
+import { getLoadSuggestion, type LoadSuggestion } from '../lib/progression'
 import { Button, Badge } from './ui'
 import type { SessionExercise } from '../types'
 
-export function SessionExerciseCard({ sessionExercise }: { sessionExercise: SessionExercise }) {
+export function SessionExerciseCard({ sessionExercise, isDeloadWeek }: { sessionExercise: SessionExercise; isDeloadWeek: boolean }) {
   const exercise = useLiveQuery(() => db.exercises.get(sessionExercise.exerciseId), [sessionExercise.exerciseId])
   const sets = useLiveQuery(() => db.sets.where({ sessionExerciseId: sessionExercise.id }).sortBy('setNumber'), [sessionExercise.id])
   const [weight, setWeight] = useState('')
   const [reps, setReps] = useState('')
   const [rir, setRir] = useState('')
   const [expanded, setExpanded] = useState(!sessionExercise.completed && !sessionExercise.skipped)
+  const [suggestion, setSuggestion] = useState<LoadSuggestion>()
+
+  useEffect(() => {
+    if (!exercise) return
+    getLoadSuggestion(
+      sessionExercise.exerciseId,
+      exercise.category,
+      sessionExercise.targetRepRange,
+      sessionExercise.targetRIRRange,
+      sessionExercise.targetSets ?? 3,
+      isDeloadWeek
+    ).then(setSuggestion)
+  }, [exercise, sessionExercise, isDeloadWeek])
 
   if (!exercise) return null
 
@@ -25,6 +39,14 @@ export function SessionExerciseCard({ sessionExercise }: { sessionExercise: Sess
     setReps('')
   }
 
+  const target = sessionExercise.targetSets ?? undefined
+  const repRange = sessionExercise.targetRepRange
+  const targetLine = sessionExercise.prescriptionLabel
+    ? `Target: ${target ? `${target} × ` : ''}${sessionExercise.prescriptionLabel.replace(/^\d+\s*×\s*/, '')}`
+    : target && repRange
+      ? `Target: ${target} × ${repRange.min}–${repRange.max}`
+      : null
+
   return (
     <div className="bg-surface rounded-2xl border border-border overflow-hidden">
       <button className="w-full flex items-center justify-between p-4" onClick={() => setExpanded((v) => !v)}>
@@ -34,13 +56,33 @@ export function SessionExerciseCard({ sessionExercise }: { sessionExercise: Sess
             {sessionExercise.skipped && <Badge tone="warn">Skipped</Badge>}
             {sessionExercise.completed && !sessionExercise.skipped && <Badge tone="accent">Done</Badge>}
           </p>
-          <p className="text-xs text-text-dim">{sets?.length ?? 0} set{sets?.length === 1 ? '' : 's'} logged</p>
+          <p className="text-xs text-text-dim">
+            {sets?.length ?? 0} set{sets?.length === 1 ? '' : 's'} logged
+            {targetLine ? ` · ${targetLine}` : ''}
+            {sessionExercise.targetRIRRange ? ` @${sessionExercise.targetRIRRange.min}-${sessionExercise.targetRIRRange.max} RIR` : ''}
+          </p>
         </div>
         <span className="text-text-dim">{expanded ? '▲' : '▼'}</span>
       </button>
 
       {expanded && (
         <div className="px-4 pb-4 flex flex-col gap-3">
+          {suggestion && (
+            <div className={`rounded-lg px-3 py-2 text-sm ${isDeloadWeek ? 'bg-warn/10 text-warn' : 'bg-accent/10 text-accent'}`}>
+              {suggestion.suggestedWeight !== null ? (
+                <button
+                  className="font-medium underline decoration-dotted"
+                  onClick={() => setWeight(String(suggestion.suggestedWeight))}
+                >
+                  Suggested: {suggestion.suggestedWeight} {suggestion.lastSession ? `(last: ${suggestion.lastSession.weight}×${suggestion.lastSession.reps}${suggestion.lastSession.rir !== null ? ` @${suggestion.lastSession.rir}RIR` : ''})` : ''}
+                </button>
+              ) : (
+                <span>{suggestion.reasonLabel}</span>
+              )}
+              {suggestion.suggestedWeight !== null && <p className="text-xs opacity-80 mt-0.5">{suggestion.reasonLabel} — tap to fill weight</p>}
+            </div>
+          )}
+
           {sets && sets.length > 0 && (
             <div className="flex flex-col gap-1.5">
               {sets.map((s) => (

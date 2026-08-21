@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/schema'
 import { startSession, todayStr, upsertHealthCheckin } from '../db/queries'
+import { computeProgramWeek } from '../lib/program'
 import { Shell } from '../components/layout/Shell'
 import { StreakBadge } from '../components/StreakBadge'
 import { Card, Button, Badge } from '../components/ui'
@@ -15,10 +16,16 @@ export function Today() {
   const today = todayStr()
 
   const templates = useLiveQuery(() => db.dayTemplates.filter((t) => !t.archived).toArray(), [])
+  const programSettings = useLiveQuery(() => db.programSettings.get('singleton'), [])
   const todaysSessions = useLiveQuery(() => db.sessions.where({ date: today }).toArray(), [today])
   const todaysCrossTraining = useLiveQuery(() => db.crossTraining.where({ date: today }).toArray(), [today])
   const todaysCheckin = useLiveQuery(() => db.healthCheckins.where({ date: today }).first(), [today])
   const todaysSleep = useLiveQuery(() => db.sleep.where({ date: today }).first(), [today])
+
+  const programWeek = computeProgramWeek(programSettings?.startDate ?? null, today)
+  // Default to Block 1 until a program start date is set, so the app stays usable.
+  const currentBlock = programWeek.block ?? 1
+  const blockTemplates = (templates ?? []).filter((t) => t.block === currentBlock)
 
   const [flags, setFlags] = useState<HealthFlagStatus>()
   useEffect(() => {
@@ -27,7 +34,7 @@ export function Today() {
 
   async function handleStart(templateId: string, name: string) {
     const template = await db.dayTemplates.get(templateId)
-    const session = await startSession(template ?? null, name, today)
+    const session = await startSession(template ?? null, name, today, programWeek.isDeloadWeek)
     navigate(`/train?session=${session.id}`)
   }
 
@@ -35,6 +42,31 @@ export function Today() {
     <Shell title="Today">
       <div className="flex flex-col gap-4">
         <StreakBadge />
+
+        {programWeek.week ? (
+          <Card className={programWeek.isDeloadWeek ? 'border-warn/50 bg-warn/10' : ''}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">
+                  Week {programWeek.week} of 12 · Block {currentBlock}
+                  {programWeek.pastProgram && ' (past program)'}
+                </p>
+                <p className="text-sm text-text-dim">{programWeek.blockLabel}</p>
+              </div>
+              {programWeek.isDeloadWeek && <Badge tone="warn">Deload week</Badge>}
+            </div>
+            {programWeek.isDeloadWeek && (
+              <p className="text-sm text-text-dim mt-2">Sets are trimmed ~25–30% automatically. Keep movement quality high.</p>
+            )}
+          </Card>
+        ) : (
+          <Card className="cursor-pointer hover:border-accent" onClick={() => navigate('/more/settings')}>
+            <p className="text-sm">
+              <span className="text-accent font-medium">Set your program start date</span> in Settings to track week/block and get deload-week
+              suggestions.
+            </p>
+          </Card>
+        )}
 
         {flags?.swellingAlert && (
           <Card className="border-danger/50 bg-danger/10">
@@ -53,7 +85,7 @@ export function Today() {
         <div>
           <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Start a session</h2>
           <div className="grid grid-cols-2 gap-2">
-            {templates?.map((t) => (
+            {blockTemplates.map((t) => (
               <button
                 key={t.id}
                 onClick={() => handleStart(t.id, t.name)}
@@ -79,7 +111,8 @@ export function Today() {
             <Button variant="secondary" onClick={() => navigate('/train?tab=bike')}>🚴 Bike</Button>
             <Button variant="secondary" onClick={() => navigate('/train?tab=soccer')}>⚽ Soccer</Button>
             <Button variant="secondary" onClick={() => navigate('/train?tab=volleyball')}>🏐 Volleyball</Button>
-            <Button variant="secondary" onClick={() => navigate('/train?tab=sleep')}>😴 Sleep</Button>
+            <Button variant="secondary" onClick={() => navigate('/train?tab=hiking')}>🥾 Hiking</Button>
+            <Button variant="secondary" className="col-span-2" onClick={() => navigate('/train?tab=sleep')}>😴 Sleep</Button>
           </div>
         </div>
 

@@ -31,13 +31,19 @@ export async function archiveExercise(id: string) {
 }
 
 // ---- Sessions ----
-export async function startSession(dayTemplate: DayTemplate | null, dayTypeName: string, date = todayStr()) {
+/**
+ * isDeloadWeek trims each exercise's target sets by ~25-30% (per the plan's
+ * Week 4/8/12 rule) at session-start time, so the reduced target is baked
+ * into what gets shown/logged rather than needing to be recomputed later.
+ */
+export async function startSession(dayTemplate: DayTemplate | null, dayTypeName: string, date = todayStr(), isDeloadWeek = false) {
   const session: WorkoutSession = {
     id: uid(),
     date,
     dayTemplateId: dayTemplate?.id,
     dayTypeName,
     status: 'in_progress',
+    isDeloadWeek,
     createdAt: new Date().toISOString(),
   }
   await db.sessions.add(session)
@@ -53,6 +59,10 @@ export async function startSession(dayTemplate: DayTemplate | null, dayTypeName:
         order: te.order,
         completed: false,
         skipped: false,
+        targetSets: isDeloadWeek ? Math.max(1, Math.round(te.targetSets * 0.72)) : te.targetSets,
+        targetRepRange: te.targetRepRange,
+        targetRIRRange: te.targetRIRRange,
+        prescriptionLabel: te.prescriptionLabel,
       }))
     await db.sessionExercises.bulkAdd(sessionExercises)
   }
@@ -62,6 +72,7 @@ export async function startSession(dayTemplate: DayTemplate | null, dayTypeName:
 
 export async function addSessionExercise(sessionId: string, exerciseId: string) {
   const existing = await db.sessionExercises.where({ sessionId }).toArray()
+  const exercise = await db.exercises.get(exerciseId)
   const se: SessionExercise = {
     id: uid(),
     sessionId,
@@ -69,6 +80,9 @@ export async function addSessionExercise(sessionId: string, exerciseId: string) 
     order: existing.length,
     completed: false,
     skipped: false,
+    targetSets: 3,
+    targetRepRange: exercise?.targetRepRange,
+    targetRIRRange: exercise?.targetRIRRange,
   }
   await db.sessionExercises.add(se)
   return se
@@ -161,4 +175,13 @@ export async function upsertSleep(data: Omit<SleepEntry, 'id'>) {
   const entry: SleepEntry = { ...data, id: uid() }
   await db.sleep.add(entry)
   return entry
+}
+
+// ---- Exercise media (one uploaded GIF/image/video per exercise) ----
+export async function setExerciseMedia(exerciseId: string, blob: Blob, mediaType: 'image' | 'video', fileName: string) {
+  await db.exerciseMedia.put({ exerciseId, blob, mediaType, fileName, updatedAt: new Date().toISOString() })
+}
+
+export async function deleteExerciseMedia(exerciseId: string) {
+  await db.exerciseMedia.delete(exerciseId)
 }

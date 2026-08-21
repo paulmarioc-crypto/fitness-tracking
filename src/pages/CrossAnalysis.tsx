@@ -34,6 +34,7 @@ export function CrossAnalysis() {
     Bike: w.byType.bike.durationMin,
     Soccer: w.byType.soccer.durationMin,
     Volleyball: w.byType.volleyball.durationMin,
+    Hiking: w.byType.hiking.durationMin,
   }))
   const intensityData = intensity.map((i) => ({ type: i.type, Easy: i.easy, Moderate: i.moderate, Hard: i.hard }))
   const gymVolumeData = gymVolume.map((g) => ({ week: fmtDate(g.week), volume: Math.round(g.totalVolume) }))
@@ -42,7 +43,7 @@ export function CrossAnalysis() {
     <Shell title="Cross-Training Analysis">
       <div className="flex flex-col gap-5">
         <div>
-          <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Weekly minutes — bike / soccer / volleyball</h2>
+          <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Weekly minutes — bike / soccer / volleyball / hiking</h2>
           {durationData.length === 0 ? (
             <EmptyState title="No cross-training logged yet" />
           ) : (
@@ -57,6 +58,7 @@ export function CrossAnalysis() {
                   <Bar dataKey="Bike" fill="#6ea8fe" />
                   <Bar dataKey="Soccer" fill="#4fd1a5" />
                   <Bar dataKey="Volleyball" fill="#c792ea" />
+                  <Bar dataKey="Hiking" fill="#f2b84b" />
                 </BarChart>
               </ResponsiveContainer>
             </Card>

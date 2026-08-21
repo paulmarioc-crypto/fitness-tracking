@@ -21,6 +21,8 @@ export function Exercises() {
   const [search, setSearch] = useState('')
 
   const exercises = useLiveQuery(() => db.exercises.filter((e) => !e.archived).toArray(), [])
+  const mediaExerciseIds = useLiveQuery(() => db.exerciseMedia.toCollection().primaryKeys(), [])
+  const hasMedia = new Set(mediaExerciseIds ?? [])
 
   const filtered = (exercises ?? [])
     .filter((e) => filter === 'all' || e.category === filter)
@@ -56,7 +58,10 @@ export function Exercises() {
                     <p className="font-medium">{ex.name}</p>
                     <p className={`text-xs ${CATEGORY_COLOR[ex.category]} capitalize`}>{ex.category}{ex.notes ? ` · ${ex.notes}` : ''}</p>
                   </div>
-                  {ex.videoUrl && <span className="text-text-dim text-sm">▶</span>}
+                  <div className="flex gap-1 text-text-dim text-sm">
+                    {ex.videoUrl && <span title="Has video link">▶</span>}
+                    {hasMedia.has(ex.id) && <span title="Has uploaded GIF/photo/video">🖼</span>}
+                  </div>
                 </div>
               </Card>
             ))}
