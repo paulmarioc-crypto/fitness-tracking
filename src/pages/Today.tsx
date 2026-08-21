@@ -5,6 +5,7 @@ import { db } from '../db/schema'
 import { startSession, todayStr, upsertHealthCheckin } from '../db/queries'
 import { computeProgramWeek } from '../lib/program'
 import { getSessionAccuracy } from '../lib/analytics'
+import { getAddOnForDate } from '../lib/bikeAddOns'
 import { Shell } from '../components/layout/Shell'
 import { StreakBadge } from '../components/StreakBadge'
 import { Card, Button, Badge } from '../components/ui'
@@ -113,8 +114,7 @@ export function Today() {
             <Button variant="secondary" onClick={() => navigate('/train?tab=bike')}>🚴 Bike</Button>
             <Button variant="secondary" onClick={() => navigate('/train?tab=soccer')}>⚽ Soccer</Button>
             <Button variant="secondary" onClick={() => navigate('/train?tab=volleyball')}>🏐 Volleyball</Button>
-            <Button variant="secondary" onClick={() => navigate('/train?tab=hiking')}>🥾 Hiking</Button>
-            <Button variant="secondary" className="col-span-2" onClick={() => navigate('/train?tab=sleep')}>😴 Sleep</Button>
+            <Button variant="secondary" onClick={() => navigate('/train?tab=sleep')}>😴 Sleep</Button>
           </div>
         </div>
 
@@ -127,12 +127,18 @@ export function Today() {
               {todaysSessions?.map((s) => (
                 <SessionLogCard key={s.id} sessionId={s.id} dayTypeName={s.dayTypeName} status={s.status} />
               ))}
-              {todaysCrossTraining?.map((c) => (
-                <Card key={c.id} className="flex items-center justify-between py-2.5">
-                  <span className="capitalize">{c.type}</span>
-                  <span className="text-sm text-text-dim">{c.durationMin} min</span>
-                </Card>
-              ))}
+              {todaysCrossTraining?.map((c) => {
+                const addOn = c.type === 'bike' ? getAddOnForDate(c.date) : null
+                return (
+                  <Card key={c.id} className="flex items-center justify-between py-2.5">
+                    <span className="capitalize">{c.type}</span>
+                    <span className="text-sm text-text-dim">
+                      {c.durationMin} min
+                      {addOn ? ` · Add-on ${(c.bikeAddOnCompleted ?? []).length}/${addOn.exercises.length}` : ''}
+                    </span>
+                  </Card>
+                )
+              })}
               {todaysSleep && (
                 <Card className="flex items-center justify-between py-2.5">
                   <span>😴 Sleep</span>

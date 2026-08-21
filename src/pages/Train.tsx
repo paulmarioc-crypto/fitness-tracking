@@ -26,14 +26,13 @@ export function Train() {
     { value: 'bike', label: 'Bike' },
     { value: 'soccer', label: 'Soccer' },
     { value: 'volleyball', label: 'V-ball' },
-    { value: 'hiking', label: 'Hiking' },
     { value: 'sleep', label: 'Sleep' },
   ]
 
   return (
     <Shell title="Train">
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-3 gap-1 bg-surface-2 rounded-xl p-1 border border-border">
+        <div className="grid grid-cols-5 gap-1 bg-surface-2 rounded-xl p-1 border border-border">
           {TABS.map((t) => (
             <button
               key={t.value}
@@ -46,7 +45,7 @@ export function Train() {
         </div>
         {tab === 'gym' && <ResumeSessions />}
         {tab === 'sleep' && <SleepForm />}
-        {(tab === 'bike' || tab === 'soccer' || tab === 'volleyball' || tab === 'hiking') && <CrossTrainingForm type={tab} />}
+        {(tab === 'bike' || tab === 'soccer' || tab === 'volleyball') && <CrossTrainingForm type={tab} />}
       </div>
     </Shell>
   )

@@ -80,8 +80,9 @@ workout done correctly" shows up in a few places:
   is edited or later sessions change what would be suggested today.
 - **ProgramSettings** — single-row table holding the program start date used
   to compute the current week/block/deload status.
-- **CrossTrainingEntry** — bike/soccer/volleyball/hiking/other: duration,
-  intensity, avg BPM, max BPM, power (bike), notes. Carries a `source` field
+- **CrossTrainingEntry** — bike/soccer/volleyball/other: duration, intensity,
+  avg BPM, max BPM, power (bike), notes, and — for bike — which items of the
+  post-ride mobility add-on were completed. Carries a `source` field
   (`manual` today; `google_fit` / `fitbit` reserved) so an external sync can
   be bolted on later — see `src/integrations/ActivityProvider.ts` for the
   interface that keeps ingestion separate from manual entry.
@@ -100,8 +101,9 @@ workout done correctly" shows up in a few places:
   cross-training log, daily check-in.
 - **Train** — active session logging (tap-to-expand exercise, target
   sets/reps/RIR + suggested weight, inline set editing), bike/soccer/
-  volleyball/hiking quick-log forms (with avg/max BPM), and a Sleep tab
-  (duration, HRV, resting HR).
+  volleyball quick-log forms (with avg/max BPM; bike also shows the
+  Monday/Friday/Sunday 10-15 min post-ride mobility checklist from
+  `src/lib/bikeAddOns.ts`), and a Sleep tab (duration, HRV, resting HR).
 - **Exercises** — library with YouTube embeds, uploaded GIF/photo/video demo,
   step-by-step instructions, add/edit/archive.
 - **Progress** — per-exercise weight/reps/RIR/accuracy trend, weekly volume
@@ -109,8 +111,8 @@ workout done correctly" shows up in a few places:
   prescription accuracy, body-weight trend, sleep & recovery trend (duration,
   HRV, resting HR).
 - **Cross-Training Analysis** (More → Cross-training analysis) — weekly
-  minutes by activity (bike/soccer/volleyball/hiking), weekly gym volume,
-  avg/max BPM (+ power for bike) per session for bike/soccer/volleyball,
+  minutes by activity (bike/soccer/volleyball), weekly gym volume, avg/max
+  BPM (+ power for bike) per session for bike/soccer/volleyball,
   soccer/volleyball intensity mix.
 - **Health Flags** (More → Health flags) — the swelling/giving-way/shin
   dashboard.

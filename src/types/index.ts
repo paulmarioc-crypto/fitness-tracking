@@ -110,7 +110,7 @@ export interface SetEntry {
   loggedAt: string
 }
 
-export type CrossTrainingType = 'bike' | 'soccer' | 'volleyball' | 'hiking' | 'other'
+export type CrossTrainingType = 'bike' | 'soccer' | 'volleyball' | 'other'
 export type Intensity = 'easy' | 'moderate' | 'hard'
 export type DataSource = 'manual' | 'google_fit' | 'fitbit'
 
@@ -124,6 +124,8 @@ export interface CrossTrainingEntry {
   maxHR?: number
   avgPower?: number
   notes?: string
+  /** Names of the completed exercises from the Monday/Friday/Sunday post-bike mobility add-on (see lib/bikeAddOns.ts), when type is 'bike'. */
+  bikeAddOnCompleted?: string[]
   source: DataSource
 }
 

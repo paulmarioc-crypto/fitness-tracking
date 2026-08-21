@@ -242,7 +242,6 @@ export async function getCrossTrainingWeekly(): Promise<CrossTrainingWeekPoint[]
           bike: { count: 0, durationMin: 0 },
           soccer: { count: 0, durationMin: 0 },
           volleyball: { count: 0, durationMin: 0 },
-          hiking: { count: 0, durationMin: 0 },
           other: { count: 0, durationMin: 0 },
         },
       })

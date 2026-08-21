@@ -50,12 +50,6 @@ const CATALOG: SeedExerciseDef[] = [
   { name: 'Low-amplitude skater hop to stick landing', category: 'mobility', focus: 'Controlled lateral landing', repRange: { min: 4, max: 4 } },
 ]
 
-function exerciseFor(name: string, exercises: Exercise[]): Exercise {
-  const ex = exercises.find((e) => e.name === name)
-  if (!ex) throw new Error(`Seed exercise missing: ${name}`)
-  return ex
-}
-
 interface TemplateExerciseDef {
   name: string
   sets: number
@@ -244,31 +238,48 @@ const TEMPLATE_DEFS: TemplateDef[] = [
   },
 ]
 
+/**
+ * Idempotent and self-healing by design, not just "run once": every catalog
+ * exercise is upserted by name (existing rows are left untouched — this
+ * never overwrites your edits or history), and every (dayType, block)
+ * template is filled in if missing, regardless of what already exists. This
+ * matters because a schema upgrade can clear dayTemplates (see
+ * db/schema.ts's version(3) upgrade) while exercises survive — a rename in
+ * this catalog must never leave a lookup unable to find an exercise and
+ * abort the whole reseed, which previously left day templates permanently
+ * empty until this ran cleanly again.
+ */
 export async function seedIfEmpty() {
-  // Run the check-then-insert inside one transaction so two callers racing
-  // (e.g. React StrictMode's double effect invocation in dev) can't both
-  // see an empty table and each insert their own copy of the seed data.
   await db.transaction('rw', db.exercises, db.dayTemplates, async () => {
-    let exercises = await db.exercises.toArray()
+    const existingExercises = await db.exercises.toArray()
+    const exerciseByName = new Map(existingExercises.map((e) => [e.name, e]))
 
-    if (exercises.length === 0) {
-      const now = new Date().toISOString()
-      exercises = CATALOG.map((def) => ({
+    const now = new Date().toISOString()
+    const newExercises: Exercise[] = []
+    for (const def of CATALOG) {
+      if (exerciseByName.has(def.name)) continue
+      const ex: Exercise = {
         id: uid(),
         name: def.name,
         category: def.category,
         targetRepRange: def.repRange,
-        targetRIRRange: { min: 1, max: 2 },
+        targetRIRRange: DEFAULT_RIR,
         notes: def.focus,
         archived: false,
         createdAt: now,
-      }))
-      await db.exercises.bulkAdd(exercises)
+      }
+      newExercises.push(ex)
+      exerciseByName.set(def.name, ex)
     }
+    if (newExercises.length > 0) await db.exercises.bulkAdd(newExercises)
 
-    const templateCount = await db.dayTemplates.count()
-    if (templateCount === 0) {
-      const templates: DayTemplate[] = TEMPLATE_DEFS.map((t) => ({
+    const existingTemplates = await db.dayTemplates.toArray()
+    const existingTemplateKeys = new Set(existingTemplates.map((t) => `${t.dayType}::${t.block}`))
+
+    const newTemplates: DayTemplate[] = []
+    for (const t of TEMPLATE_DEFS) {
+      if (existingTemplateKeys.has(`${t.dayType}::${t.block}`)) continue
+      newTemplates.push({
         id: uid(),
         name: t.dayType,
         dayType: t.dayType,
@@ -276,7 +287,8 @@ export async function seedIfEmpty() {
         blockLabel: t.blockLabel,
         archived: false,
         exercises: t.exercises.map((e, idx) => {
-          const ex = exerciseFor(e.name, exercises)
+          const ex = exerciseByName.get(e.name)
+          if (!ex) throw new Error(`Seed exercise missing from CATALOG: ${e.name}`)
           return {
             id: uid(),
             exerciseId: ex.id,
@@ -288,8 +300,8 @@ export async function seedIfEmpty() {
             focus: e.focus,
           }
         }),
-      }))
-      await db.dayTemplates.bulkAdd(templates)
+      })
     }
+    if (newTemplates.length > 0) await db.dayTemplates.bulkAdd(newTemplates)
   })
 }
