@@ -43,7 +43,24 @@ then on:
   exercise: double progression (add weight once you hit the top of the rep
   range at target RIR, otherwise repeat the weight and build reps) on normal
   weeks, and ~15% below your last top set on deload weeks. Tap the
-  suggestion to fill the weight field.
+  suggestion to fill the weight field. The suggestion is snapshotted onto the
+  session the moment the exercise is added, so it stays a stable historical
+  record even if later sessions change what the app would suggest today.
+
+## Prescription accuracy (`src/lib/adherenceScore.ts`)
+
+Every logged set is scored 0-100% against what you were told to do: how
+close the weight was to the suggested weight (100% within ±5%, tapering to
+0% by ±30% off), and whether reps met the target rep floor (meeting or
+beating it is full credit — exceeding it just means "add weight next time").
+Sets with nothing to score against (no suggestion yet, no target range) are
+left out rather than dragging the score down. This "percentage of the
+workout done correctly" shows up in a few places:
+- A badge on each exercise card while logging, and on the finished session
+  card on Today.
+- A dashed accuracy line (right axis) alongside the weight trend on each
+  exercise's detail page, plus a badge per session in its history list.
+- A weekly **Prescription accuracy** trend chart on the Progress page.
 
 ## Data model (`src/types/index.ts`, `src/db/schema.ts`)
 
@@ -57,9 +74,10 @@ then on:
   which exercises were actually done (vs. skipped), and each exercise holds
   an arbitrary number of independently editable sets (weight, reps, RIR).
   Sets are never averaged or collapsed — edit set 3 without touching 1, 2, 4.
-  Target sets/reps/RIR are snapshotted onto the SessionExercise at session
-  start (deload-adjusted if applicable) so they stay correct even if the
-  template is edited later.
+  Target sets/reps/RIR and the suggested weight are snapshotted onto the
+  SessionExercise at session start (deload-adjusted if applicable) so they
+  stay correct — and accuracy scoring stays stable — even if the template
+  is edited or later sessions change what would be suggested today.
 - **ProgramSettings** — single-row table holding the program start date used
   to compute the current week/block/deload status.
 - **CrossTrainingEntry** — bike/soccer/volleyball/hiking/other: duration,
@@ -86,9 +104,10 @@ then on:
   (duration, HRV, resting HR).
 - **Exercises** — library with YouTube embeds, uploaded GIF/photo/video demo,
   step-by-step instructions, add/edit/archive.
-- **Progress** — per-exercise weight/reps/RIR trend, weekly volume by
-  day-type, adherence (planned vs. completed vs. skipped), body-weight trend,
-  sleep & recovery trend (duration, HRV, resting HR).
+- **Progress** — per-exercise weight/reps/RIR/accuracy trend, weekly volume
+  by day-type, adherence (planned vs. completed vs. skipped), weekly
+  prescription accuracy, body-weight trend, sleep & recovery trend (duration,
+  HRV, resting HR).
 - **Cross-Training Analysis** (More → Cross-training analysis) — weekly
   minutes by activity (bike/soccer/volleyball/hiking), weekly gym volume,
   avg/max BPM (+ power for bike) per session for bike/soccer/volleyball,

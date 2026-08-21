@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { db } from '../db/schema'
 import { updateExercise, archiveExercise } from '../db/queries'
 import { getExerciseTrend, type ExerciseTrendPoint } from '../lib/analytics'
 import { toEmbedUrl } from '../lib/video'
 import { fmtDate } from '../lib/dates'
 import { Shell } from '../components/layout/Shell'
-import { Card, Button, TextField, EmptyState } from '../components/ui'
+import { Card, Button, Badge, TextField, EmptyState } from '../components/ui'
 import { ExerciseMediaUploader } from '../components/ExerciseMediaUploader'
 
 export function ExerciseDetail() {
@@ -31,7 +31,8 @@ export function ExerciseDetail() {
   }
 
   const embedUrl = exercise.videoUrl ? toEmbedUrl(exercise.videoUrl) : null
-  const chartData = trend.map((p) => ({ date: fmtDate(p.date), topWeight: p.topWeight, volume: Math.round(p.totalVolume) }))
+  const chartData = trend.map((p) => ({ date: fmtDate(p.date), topWeight: p.topWeight, volume: Math.round(p.totalVolume), accuracy: p.accuracy }))
+  const hasAccuracy = chartData.some((p) => p.accuracy !== null)
 
   return (
     <Shell title={exercise.name}>
@@ -66,19 +67,24 @@ export function ExerciseDetail() {
         {editing && <EditForm exercise={exercise} onDone={() => setEditing(false)} />}
 
         <div>
-          <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Top set weight over time</h2>
+          <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Top set weight &amp; accuracy over time</h2>
           {chartData.length === 0 ? (
             <EmptyState title="No data yet" hint="Log a set to start tracking progress." />
           ) : (
             <Card>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={chartData}>
+              <ResponsiveContainer width="100%" height={220}>
+                <ComposedChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#232c37" />
                   <XAxis dataKey="date" stroke="#8b98a5" fontSize={11} />
-                  <YAxis stroke="#8b98a5" fontSize={11} width={32} />
+                  <YAxis yAxisId="weight" stroke="#8b98a5" fontSize={11} width={32} />
+                  {hasAccuracy && <YAxis yAxisId="accuracy" orientation="right" stroke="#8b98a5" fontSize={11} width={32} domain={[0, 100]} />}
                   <Tooltip contentStyle={{ background: '#1a222b', border: '1px solid #232c37', borderRadius: 8 }} />
-                  <Line type="monotone" dataKey="topWeight" stroke="#4fd1a5" strokeWidth={2} dot={{ r: 3 }} name="Top set weight" />
-                </LineChart>
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Line yAxisId="weight" type="monotone" dataKey="topWeight" stroke="#4fd1a5" strokeWidth={2} dot={{ r: 3 }} name="Top set weight" />
+                  {hasAccuracy && (
+                    <Line yAxisId="accuracy" type="monotone" dataKey="accuracy" stroke="#f2b84b" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 3 }} name="Accuracy %" connectNulls />
+                  )}
+                </ComposedChart>
               </ResponsiveContainer>
             </Card>
           )}
@@ -89,10 +95,15 @@ export function ExerciseDetail() {
           <div className="flex flex-col gap-2">
             {trend.slice().reverse().map((p) => (
               <Card key={p.date}>
-                <p className="text-sm font-medium mb-1">{fmtDate(p.date, 'EEE, MMM d')}</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-medium">{fmtDate(p.date, 'EEE, MMM d')}</p>
+                  {p.accuracy !== null && (
+                    <Badge tone={p.accuracy >= 80 ? 'accent' : p.accuracy >= 50 ? 'warn' : 'danger'}>{p.accuracy}% accurate</Badge>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {p.sets.map((s) => (
-                    <span key={s.setNumber} className="text-xs bg-surface-2 rounded-md px-2 py-1">
+                    <span key={s.id} className="text-xs bg-surface-2 rounded-md px-2 py-1">
                       {s.weight}×{s.reps}{s.rir !== null ? ` @${s.rir}RIR` : ''}
                     </span>
                   ))}

@@ -1,14 +1,18 @@
 import { db } from '../db/schema'
 import { weekKey } from './dates'
-import type { CrossTrainingType } from '../types'
+import { computeSetScore, averageScore } from './adherenceScore'
+import type { CrossTrainingType, RepRange } from '../types'
 
 export interface SetPoint {
+  id: string
   date: string
   setNumber: number
   weight: number
   reps: number
   rir: number | null
   volume: number
+  accuracy: number | null
+  loggedAt: string
 }
 
 export interface ExerciseTrendPoint {
@@ -17,6 +21,8 @@ export interface ExerciseTrendPoint {
   totalVolume: number
   avgReps: number
   avgRIR: number | null
+  /** Average accuracy (0-100) of sets logged that day against their target reps / suggested weight; null if nothing to score against. */
+  accuracy: number | null
   sets: SetPoint[]
 }
 
@@ -39,25 +45,31 @@ export async function getExerciseTrend(exerciseId: string): Promise<ExerciseTren
     const date = dateBySessionId.get(se.sessionId)
     if (!date) continue
     const point: SetPoint = {
+      id: set.id,
       date,
       setNumber: set.setNumber,
       weight: set.weight,
       reps: set.reps,
       rir: set.rir,
       volume: set.weight * set.reps,
+      accuracy: computeSetScore(set.weight, set.reps, se.targetRepRange, se.suggestedWeight),
+      loggedAt: set.loggedAt,
     }
     if (!byDate.has(date)) byDate.set(date, [])
     byDate.get(date)!.push(point)
   }
 
   const points: ExerciseTrendPoint[] = Array.from(byDate.entries()).map(([date, sets]) => {
-    sets.sort((a, b) => a.setNumber - b.setNumber)
+    // sort chronologically (not just by setNumber, which restarts per session-exercise
+    // and can collide if the same exercise was logged in two sessions the same day)
+    sets.sort((a, b) => a.loggedAt.localeCompare(b.loggedAt))
     const totalVolume = sets.reduce((sum, s) => sum + s.volume, 0)
     const topWeight = Math.max(...sets.map((s) => s.weight))
     const avgReps = sets.reduce((sum, s) => sum + s.reps, 0) / sets.length
     const withRir = sets.filter((s) => s.rir !== null)
     const avgRIR = withRir.length ? withRir.reduce((sum, s) => sum + (s.rir ?? 0), 0) / withRir.length : null
-    return { date, topWeight, totalVolume, avgReps, avgRIR, sets }
+    const accuracy = averageScore(sets.map((s) => s.accuracy))
+    return { date, topWeight, totalVolume, avgReps, avgRIR, accuracy, sets }
   })
 
   return points.sort((a, b) => a.date.localeCompare(b.date))
@@ -92,6 +104,63 @@ export async function getWeeklyVolume(): Promise<WeeklyVolumePoint[]> {
   return Array.from(weekMap.entries())
     .map(([week, byDayType]) => ({ week, byDayType }))
     .sort((a, b) => a.week.localeCompare(b.week))
+}
+
+export interface WeeklyAccuracyPoint {
+  week: string
+  accuracy: number | null
+  scoredSets: number
+}
+
+/**
+ * Weekly "workout done correctly" score: every logged set is compared to
+ * its target rep range and suggested weight (see lib/adherenceScore.ts),
+ * then averaged across the whole week. Sets with nothing to score against
+ * (no history yet, no target) are left out rather than dragging the score down.
+ */
+export async function getWeeklyAccuracyTrend(): Promise<WeeklyAccuracyPoint[]> {
+  const sessions = await db.sessions.toArray()
+  const sessionExercises = await db.sessionExercises.toArray()
+  const sets = await db.sets.toArray()
+
+  const weekBySessionId = new Map(sessions.map((s) => [s.id, weekKey(s.date)]))
+  const seById = new Map(sessionExercises.map((se) => [se.id, se]))
+
+  const weekMap = new Map<string, number[]>()
+  for (const set of sets) {
+    const se = seById.get(set.sessionExerciseId)
+    if (!se) continue
+    const week = weekBySessionId.get(se.sessionId)
+    if (!week) continue
+    const score = computeSetScore(set.weight, set.reps, se.targetRepRange, se.suggestedWeight)
+    if (!weekMap.has(week)) weekMap.set(week, [])
+    if (score !== null) weekMap.get(week)!.push(score)
+  }
+
+  return Array.from(weekMap.entries())
+    .map(([week, scores]) => ({ week, accuracy: averageScore(scores), scoredSets: scores.length }))
+    .sort((a, b) => a.week.localeCompare(b.week))
+}
+
+/** "Percentage of the workout done correctly" for one finished (or in-progress) session. */
+export async function getSessionAccuracy(sessionId: string): Promise<number | null> {
+  const sessionExercises = await db.sessionExercises.where({ sessionId }).toArray()
+  if (sessionExercises.length === 0) return null
+  const seIds = sessionExercises.map((se) => se.id)
+  const seById = new Map(sessionExercises.map((se) => [se.id, se]))
+  const sets = await db.sets.where('sessionExerciseId').anyOf(seIds).toArray()
+  const scores = sets.map((set) => {
+    const se = seById.get(set.sessionExerciseId)
+    return se ? computeSetScore(set.weight, set.reps, se.targetRepRange, se.suggestedWeight) : null
+  })
+  return averageScore(scores)
+}
+
+/** Same idea, scoped to a single exercise within a session (for a per-exercise badge while logging). */
+export async function getSessionExerciseAccuracy(sessionExercise: { id: string; targetRepRange?: RepRange; suggestedWeight?: number | null }): Promise<number | null> {
+  const sets = await db.sets.where({ sessionExerciseId: sessionExercise.id }).toArray()
+  const scores = sets.map((set) => computeSetScore(set.weight, set.reps, sessionExercise.targetRepRange, sessionExercise.suggestedWeight))
+  return averageScore(scores)
 }
 
 export interface BodyWeightPoint {

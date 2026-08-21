@@ -1,4 +1,5 @@
 import { db } from './schema'
+import { getLoadSuggestion } from '../lib/progression'
 import type {
   Exercise,
   DayTemplate,
@@ -49,21 +50,29 @@ export async function startSession(dayTemplate: DayTemplate | null, dayTypeName:
   await db.sessions.add(session)
 
   if (dayTemplate) {
-    const sessionExercises: SessionExercise[] = dayTemplate.exercises
-      .slice()
-      .sort((a, b) => a.order - b.order)
-      .map((te) => ({
-        id: uid(),
-        sessionId: session.id,
-        exerciseId: te.exerciseId,
-        order: te.order,
-        completed: false,
-        skipped: false,
-        targetSets: isDeloadWeek ? Math.max(1, Math.round(te.targetSets * 0.72)) : te.targetSets,
-        targetRepRange: te.targetRepRange,
-        targetRIRRange: te.targetRIRRange,
-        prescriptionLabel: te.prescriptionLabel,
-      }))
+    const sorted = dayTemplate.exercises.slice().sort((a, b) => a.order - b.order)
+    const sessionExercises: SessionExercise[] = await Promise.all(
+      sorted.map(async (te) => {
+        const exercise = await db.exercises.get(te.exerciseId)
+        const targetSets = isDeloadWeek ? Math.max(1, Math.round(te.targetSets * 0.72)) : te.targetSets
+        const suggestion = exercise
+          ? await getLoadSuggestion(te.exerciseId, exercise.category, te.targetRepRange, te.targetRIRRange, targetSets, isDeloadWeek)
+          : null
+        return {
+          id: uid(),
+          sessionId: session.id,
+          exerciseId: te.exerciseId,
+          order: te.order,
+          completed: false,
+          skipped: false,
+          targetSets,
+          targetRepRange: te.targetRepRange,
+          targetRIRRange: te.targetRIRRange,
+          prescriptionLabel: te.prescriptionLabel,
+          suggestedWeight: suggestion?.suggestedWeight ?? null,
+        }
+      })
+    )
     await db.sessionExercises.bulkAdd(sessionExercises)
   }
 
@@ -73,6 +82,10 @@ export async function startSession(dayTemplate: DayTemplate | null, dayTypeName:
 export async function addSessionExercise(sessionId: string, exerciseId: string) {
   const existing = await db.sessionExercises.where({ sessionId }).toArray()
   const exercise = await db.exercises.get(exerciseId)
+  const targetSets = 3
+  const suggestion = exercise
+    ? await getLoadSuggestion(exerciseId, exercise.category, exercise.targetRepRange, exercise.targetRIRRange, targetSets, false)
+    : null
   const se: SessionExercise = {
     id: uid(),
     sessionId,
@@ -80,9 +93,10 @@ export async function addSessionExercise(sessionId: string, exerciseId: string) 
     order: existing.length,
     completed: false,
     skipped: false,
-    targetSets: 3,
+    targetSets,
     targetRepRange: exercise?.targetRepRange,
     targetRIRRange: exercise?.targetRIRRange,
+    suggestedWeight: suggestion?.suggestedWeight ?? null,
   }
   await db.sessionExercises.add(se)
   return se

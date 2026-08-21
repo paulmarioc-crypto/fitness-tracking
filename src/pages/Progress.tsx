@@ -4,7 +4,18 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { db } from '../db/schema'
 import { addBodyWeight, todayStr } from '../db/queries'
-import { getWeeklyVolume, getBodyWeightTrend, getAdherence, getSleepTrend, type WeeklyVolumePoint, type BodyWeightPoint, type AdherencePoint, type SleepPoint } from '../lib/analytics'
+import {
+  getWeeklyVolume,
+  getBodyWeightTrend,
+  getAdherence,
+  getSleepTrend,
+  getWeeklyAccuracyTrend,
+  type WeeklyVolumePoint,
+  type BodyWeightPoint,
+  type AdherencePoint,
+  type SleepPoint,
+  type WeeklyAccuracyPoint,
+} from '../lib/analytics'
 import { fmtDate } from '../lib/dates'
 import { Shell } from '../components/layout/Shell'
 import { Card, Button, NumberField, EmptyState } from '../components/ui'
@@ -20,13 +31,19 @@ export function Progress() {
   const [bodyWeightTrend, setBodyWeightTrend] = useState<BodyWeightPoint[]>([])
   const [adherence, setAdherence] = useState<AdherencePoint[]>([])
   const [sleepTrend, setSleepTrend] = useState<SleepPoint[]>([])
+  const [accuracyTrend, setAccuracyTrend] = useState<WeeklyAccuracyPoint[]>([])
   const sleepEntries = useLiveQuery(() => db.sleep.toArray(), [])
+  const setsCount = useLiveQuery(() => db.sets.count(), [])
 
   useEffect(() => {
     getWeeklyVolume().then(setWeeklyVolume)
     getBodyWeightTrend().then(setBodyWeightTrend)
     getAdherence().then(setAdherence)
   }, [bodyWeightEntries])
+
+  useEffect(() => {
+    getWeeklyAccuracyTrend().then(setAccuracyTrend)
+  }, [setsCount])
 
   useEffect(() => {
     getSleepTrend().then(setSleepTrend)
@@ -42,6 +59,7 @@ export function Progress() {
     planned: a.plannedExercises,
   }))
   const sleepChartData = sleepTrend.map((p) => ({ date: fmtDate(p.date), hours: p.sleepDurationHrs, hrv: p.hrv, restingHR: p.restingHR }))
+  const accuracyChartData = accuracyTrend.filter((p) => p.accuracy !== null).map((p) => ({ week: fmtDate(p.week), accuracy: p.accuracy }))
 
   return (
     <Shell title="Progress">
@@ -100,6 +118,28 @@ export function Progress() {
                   <Bar dataKey="completed" stackId="a" fill="#4fd1a5" />
                   <Bar dataKey="skipped" stackId="a" fill="#f26d6d" />
                 </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+        </div>
+
+        <div>
+          <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Prescription accuracy</h2>
+          <p className="text-xs text-text-dim mb-2">
+            How closely logged sets matched the target reps and suggested weight — the plan's own progression/deload rules, not just "did you show up."
+          </p>
+          {accuracyChartData.length === 0 ? (
+            <EmptyState title="No scored sets yet" hint="Scores start once an exercise has a prior session to suggest a weight from." />
+          ) : (
+            <Card>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={accuracyChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#232c37" />
+                  <XAxis dataKey="week" stroke="#8b98a5" fontSize={11} />
+                  <YAxis stroke="#8b98a5" fontSize={11} width={30} domain={[0, 100]} />
+                  <Tooltip contentStyle={{ background: '#1a222b', border: '1px solid #232c37', borderRadius: 8 }} />
+                  <Line type="monotone" dataKey="accuracy" stroke="#f2b84b" strokeWidth={2} dot={{ r: 3 }} name="Accuracy %" />
+                </LineChart>
               </ResponsiveContainer>
             </Card>
           )}

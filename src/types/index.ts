@@ -92,6 +92,8 @@ export interface SessionExercise {
   targetRepRange?: RepRange
   targetRIRRange?: RepRange
   prescriptionLabel?: string
+  /** Suggested weight at the moment this exercise was added to the session — a stable snapshot for scoring accuracy later, even if later sessions change the suggestion. */
+  suggestedWeight?: number | null
 }
 
 export type WeightUnit = 'lb' | 'kg'

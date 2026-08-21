@@ -4,12 +4,14 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/schema'
 import { startSession, todayStr, upsertHealthCheckin } from '../db/queries'
 import { computeProgramWeek } from '../lib/program'
+import { getSessionAccuracy } from '../lib/analytics'
 import { Shell } from '../components/layout/Shell'
 import { StreakBadge } from '../components/StreakBadge'
 import { Card, Button, Badge } from '../components/ui'
 import { getHealthFlagStatus } from '../lib/healthFlags'
 import { useEffect } from 'react'
 import type { HealthFlagStatus } from '../lib/healthFlags'
+import type { SessionStatus } from '../types'
 
 export function Today() {
   const navigate = useNavigate()
@@ -123,10 +125,7 @@ export function Today() {
             <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Logged today</h2>
             <div className="flex flex-col gap-2">
               {todaysSessions?.map((s) => (
-                <Card key={s.id} className="flex items-center justify-between py-2.5">
-                  <span>{s.dayTypeName}</span>
-                  <Badge tone={s.status === 'completed' ? 'accent' : 'default'}>{s.status.replace('_', ' ')}</Badge>
-                </Card>
+                <SessionLogCard key={s.id} sessionId={s.id} dayTypeName={s.dayTypeName} status={s.status} />
               ))}
               {todaysCrossTraining?.map((c) => (
                 <Card key={c.id} className="flex items-center justify-between py-2.5">
@@ -197,6 +196,21 @@ function QuickCheckin({ defaultDate }: { defaultDate: string }) {
         rows={2}
       />
       <Button onClick={save} className="w-full">{saved ? 'Saved ✓' : existing ? 'Update check-in' : 'Save check-in'}</Button>
+    </Card>
+  )
+}
+
+function SessionLogCard({ sessionId, dayTypeName, status }: { sessionId: string; dayTypeName: string; status: SessionStatus }) {
+  const accuracy = useLiveQuery(() => getSessionAccuracy(sessionId), [sessionId])
+  const accuracyTone = accuracy == null ? 'default' : accuracy >= 80 ? 'accent' : accuracy >= 50 ? 'warn' : 'danger'
+
+  return (
+    <Card className="flex items-center justify-between py-2.5">
+      <span>{dayTypeName}</span>
+      <div className="flex gap-1.5">
+        {accuracy != null && <Badge tone={accuracyTone}>{accuracy}% accurate</Badge>}
+        <Badge tone={status === 'completed' ? 'accent' : 'default'}>{status.replace('_', ' ')}</Badge>
+      </div>
     </Card>
   )
 }

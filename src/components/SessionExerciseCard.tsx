@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/schema'
 import { addSet, updateSet, deleteSet, setSessionExerciseStatus } from '../db/queries'
 import { getLoadSuggestion, type LoadSuggestion } from '../lib/progression'
+import { computeSetScore, averageScore } from '../lib/adherenceScore'
 import { Button, Badge } from './ui'
 import type { SessionExercise } from '../types'
 
@@ -47,6 +48,9 @@ export function SessionExerciseCard({ sessionExercise, isDeloadWeek }: { session
       ? `Target: ${target} × ${repRange.min}–${repRange.max}`
       : null
 
+  const accuracy = sets ? averageScore(sets.map((s) => computeSetScore(s.weight, s.reps, sessionExercise.targetRepRange, sessionExercise.suggestedWeight))) : null
+  const accuracyTone = accuracy === null ? 'default' : accuracy >= 80 ? 'accent' : accuracy >= 50 ? 'warn' : 'danger'
+
   return (
     <div className="bg-surface rounded-2xl border border-border overflow-hidden">
       <button className="w-full flex items-center justify-between p-4" onClick={() => setExpanded((v) => !v)}>
@@ -55,6 +59,7 @@ export function SessionExerciseCard({ sessionExercise, isDeloadWeek }: { session
             {exercise.name}
             {sessionExercise.skipped && <Badge tone="warn">Skipped</Badge>}
             {sessionExercise.completed && !sessionExercise.skipped && <Badge tone="accent">Done</Badge>}
+            {accuracy !== null && <Badge tone={accuracyTone}>{accuracy}% accurate</Badge>}
           </p>
           <p className="text-xs text-text-dim">
             {sets?.length ?? 0} set{sets?.length === 1 ? '' : 's'} logged
