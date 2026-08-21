@@ -47,6 +47,29 @@ then on:
   session the moment the exercise is added, so it stays a stable historical
   record even if later sessions change what the app would suggest today.
 
+## Sleep-driven readiness (`src/lib/readiness.ts`)
+
+Sleep isn't just logged, it steers the load suggestions. The night attached
+to a session date is compared against your own trailing 14-night baseline
+(minimum 3 nights before it does anything) on three markers:
+
+- **Duration** — under 6h outright, or an hour below your average
+- **HRV** — more than 10% under baseline
+- **Resting HR** — more than 5 bpm over baseline
+
+Zero markers = `normal`, one = `compromised`, two or more = `low`. That
+feeds `getLoadSuggestion`:
+
+- `compromised` / `low` — an earned double-progression increase is withheld
+  ("repeat last weight instead")
+- `low` — a held weight is additionally eased ~5%
+- Deload weeks are left alone; that reduction doesn't stack
+
+Deliberately **asymmetric**: readiness can only hold back or reduce a load.
+Sleeping well never pushes the suggestion above what the plan's progression
+rule allows, because a good night isn't evidence you can skip a rep-range
+step.
+
 ## Prescription accuracy (`src/lib/adherenceScore.ts`)
 
 Every logged set is scored 0-100% against what you were told to do: how
@@ -92,7 +115,9 @@ workout done correctly" shows up in a few places:
 - **BodyWeightEntry** — logged a few times a week; the Progress page shows a
   rolling 7-day average.
 - **SleepEntry** — one per night: duration, HRV, resting HR, notes. Manually
-  entered from whatever your wearable already tracked overnight.
+  entered from whatever your wearable already tracked overnight. Sleep is
+  recovery, not cross-training, so it lives in its own tab and feeds the
+  readiness signal below.
 
 ## Pages
 
@@ -109,16 +134,18 @@ workout done correctly" shows up in a few places:
   resume, or review a completed session.
 - **Train** — active session logging (each exercise shows its sets × reps and
   target RIR up front plus "Set 2 of 3" progress, with the suggested weight
-  and inline per-set editing), bike/soccer/
-  volleyball quick-log forms (with avg/max BPM; bike also shows the
-  Monday/Friday/Sunday 10-15 min post-ride mobility checklist from
-  `src/lib/bikeAddOns.ts`), and a Sleep tab (duration, HRV, resting HR).
+  and inline per-set editing) and bike/soccer/volleyball quick-log forms
+  (with avg/max BPM; bike also shows the Monday/Friday/Sunday 10-15 min
+  post-ride mobility checklist from `src/lib/bikeAddOns.ts`).
+- **Sleep** — its own tab: today's recovery status and exactly which markers
+  are off, the log form, duration and HRV/resting-HR charts, and recent
+  nights against your baseline.
 - **Exercises** — library with YouTube embeds, uploaded GIF/photo/video demo,
   step-by-step instructions, add/edit/archive.
 - **Progress** — per-exercise weight/reps/RIR/accuracy trend, weekly volume
   by day-type, adherence (planned vs. completed vs. skipped), weekly
-  prescription accuracy, body-weight trend, sleep & recovery trend (duration,
-  HRV, resting HR).
+  prescription accuracy, body-weight trend. (Sleep charts live on the Sleep
+  tab.)
 - **Cross-Training Analysis** (More → Cross-training analysis) — weekly
   minutes by activity (bike/soccer/volleyball), weekly gym volume, avg/max
   BPM (+ power for bike) per session for bike/soccer/volleyball,

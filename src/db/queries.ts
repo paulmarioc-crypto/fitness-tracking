@@ -1,5 +1,6 @@
 import { db } from './schema'
 import { getLoadSuggestion } from '../lib/progression'
+import { getReadiness } from '../lib/readiness'
 import { deloadAdjustedSets } from '../lib/program'
 import type {
   Exercise,
@@ -52,12 +53,14 @@ export async function startSession(dayTemplate: DayTemplate | null, dayTypeName:
 
   if (dayTemplate) {
     const sorted = dayTemplate.exercises.slice().sort((a, b) => a.order - b.order)
+    // One readiness read for the whole session — it's the same night for every exercise.
+    const readiness = await getReadiness(date)
     const sessionExercises: SessionExercise[] = await Promise.all(
       sorted.map(async (te) => {
         const exercise = await db.exercises.get(te.exerciseId)
         const targetSets = deloadAdjustedSets(te.targetSets, isDeloadWeek)
         const suggestion = exercise
-          ? await getLoadSuggestion(te.exerciseId, exercise.category, te.targetRepRange, te.targetRIRRange, targetSets, isDeloadWeek)
+          ? await getLoadSuggestion(te.exerciseId, exercise.category, te.targetRepRange, te.targetRIRRange, targetSets, isDeloadWeek, readiness)
           : null
         return {
           id: uid(),

@@ -7,6 +7,8 @@ import { computeProgramWeek } from '../lib/program'
 import { getWeekRange, buildWeekWorkouts, type WeekWorkout } from '../lib/weekPlan'
 import { getSessionAccuracy } from '../lib/analytics'
 import { getAddOnForDate } from '../lib/bikeAddOns'
+import { getReadiness, type ReadinessSignal } from '../lib/readiness'
+import { ReadinessCard } from '../components/ReadinessCard'
 import { Shell } from '../components/layout/Shell'
 import { StreakBadge } from '../components/StreakBadge'
 import { Card, Button, Badge } from '../components/ui'
@@ -43,6 +45,11 @@ export function Today() {
     getHealthFlagStatus().then(setFlags)
   }, [todaysCheckin])
 
+  const [readiness, setReadiness] = useState<ReadinessSignal>()
+  useEffect(() => {
+    getReadiness(today).then(setReadiness)
+  }, [todaysSleep, today])
+
   async function startCustom() {
     const session = await startSession(null, 'Custom session', today, programWeek.isDeloadWeek)
     navigate(`/train?session=${session.id}`)
@@ -76,6 +83,12 @@ export function Today() {
               suggestions.
             </p>
           </Card>
+        )}
+
+        {readiness && (readiness.level === 'compromised' || readiness.level === 'low') && (
+          <div onClick={() => navigate('/sleep')} className="cursor-pointer">
+            <ReadinessCard readiness={readiness} compact />
+          </div>
         )}
 
         {flags?.swellingAlert && (
@@ -115,11 +128,10 @@ export function Today() {
 
         <div>
           <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">Log cross-training</h2>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <Button variant="secondary" onClick={() => navigate('/train?tab=bike')}>🚴 Bike</Button>
             <Button variant="secondary" onClick={() => navigate('/train?tab=soccer')}>⚽ Soccer</Button>
-            <Button variant="secondary" onClick={() => navigate('/train?tab=volleyball')}>🏐 Volleyball</Button>
-            <Button variant="secondary" onClick={() => navigate('/train?tab=sleep')}>😴 Sleep</Button>
+            <Button variant="secondary" onClick={() => navigate('/train?tab=volleyball')}>🏐 V-ball</Button>
           </div>
         </div>
 
@@ -145,7 +157,7 @@ export function Today() {
                 )
               })}
               {todaysSleep && (
-                <Card className="flex items-center justify-between py-2.5">
+                <Card className="flex items-center justify-between py-2.5 cursor-pointer hover:border-accent" onClick={() => navigate('/sleep')}>
                   <span>😴 Sleep</span>
                   <span className="text-sm text-text-dim">
                     {Math.floor(todaysSleep.sleepDurationMin / 60)}h {todaysSleep.sleepDurationMin % 60}m

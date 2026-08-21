@@ -4,10 +4,19 @@ import { db } from '../db/schema'
 import { addSet, updateSet, deleteSet, setSessionExerciseStatus } from '../db/queries'
 import { getLoadSuggestion, type LoadSuggestion } from '../lib/progression'
 import { computeSetScore, averageScore } from '../lib/adherenceScore'
+import type { ReadinessSignal } from '../lib/readiness'
 import { Button, Badge } from './ui'
 import type { SessionExercise } from '../types'
 
-export function SessionExerciseCard({ sessionExercise, isDeloadWeek }: { sessionExercise: SessionExercise; isDeloadWeek: boolean }) {
+export function SessionExerciseCard({
+  sessionExercise,
+  isDeloadWeek,
+  readiness,
+}: {
+  sessionExercise: SessionExercise
+  isDeloadWeek: boolean
+  readiness?: ReadinessSignal
+}) {
   const exercise = useLiveQuery(() => db.exercises.get(sessionExercise.exerciseId), [sessionExercise.exerciseId])
   const sets = useLiveQuery(() => db.sets.where({ sessionExerciseId: sessionExercise.id }).sortBy('setNumber'), [sessionExercise.id])
   const [weight, setWeight] = useState('')
@@ -24,9 +33,10 @@ export function SessionExerciseCard({ sessionExercise, isDeloadWeek }: { session
       sessionExercise.targetRepRange,
       sessionExercise.targetRIRRange,
       sessionExercise.targetSets ?? 3,
-      isDeloadWeek
+      isDeloadWeek,
+      readiness
     ).then(setSuggestion)
-  }, [exercise, sessionExercise, isDeloadWeek])
+  }, [exercise, sessionExercise, isDeloadWeek, readiness])
 
   if (!exercise) return null
 

@@ -1,4 +1,5 @@
 import { getExerciseTrend } from './analytics'
+import type { ReadinessLevel, ReadinessSignal } from './readiness'
 import type { RepRange, ExerciseCategory } from '../types'
 
 export interface LoadSuggestion {
@@ -6,6 +7,8 @@ export interface LoadSuggestion {
   suggestedSets: number
   reasonLabel: string
   lastSession?: { date: string; weight: number; reps: number; rir: number | null }
+  /** Set when sleep data was available, so the UI can show why a load was eased. */
+  readinessLevel?: ReadinessLevel
 }
 
 // Plate/dumbbell-realistic jump sizes for a "ready to progress" bump.
@@ -33,7 +36,8 @@ export async function getLoadSuggestion(
   targetRepRange: RepRange | undefined,
   targetRIRRange: RepRange | undefined,
   targetSets: number,
-  isDeloadWeek: boolean
+  isDeloadWeek: boolean,
+  readiness?: ReadinessSignal
 ): Promise<LoadSuggestion> {
   const trend = await getExerciseTrend(exerciseId)
   if (trend.length === 0) {
@@ -44,25 +48,50 @@ export async function getLoadSuggestion(
   const topSet = last.sets.reduce((a, b) => (b.weight > a.weight ? b : a))
   const lastSession = { date: last.date, weight: topSet.weight, reps: topSet.reps, rir: topSet.rir }
   const increment = INCREMENT_BY_CATEGORY[category] ?? 5
+  const step = increment >= 5 ? 2.5 : increment
 
   if (isDeloadWeek) {
+    // Deload is already the reduction — don't stack a readiness cut on top of it.
     return {
-      suggestedWeight: roundToIncrement(topSet.weight * 0.85, increment >= 5 ? 2.5 : increment),
+      suggestedWeight: roundToIncrement(topSet.weight * 0.85, step),
       suggestedSets: targetSets,
       reasonLabel: `Deload week — ~15% below your last top set`,
       lastSession,
+      readinessLevel: readiness?.level,
     }
   }
 
   const hitTop = targetRepRange ? topSet.reps >= targetRepRange.max : false
   const rirOk = targetRIRRange ? topSet.rir === null || topSet.rir <= targetRIRRange.max : true
+  const earnedProgression = hitTop && rirOk
 
-  if (hitTop && rirOk) {
+  if (earnedProgression && !readiness?.blockProgression) {
     return {
-      suggestedWeight: roundToIncrement(topSet.weight + increment, increment >= 5 ? 2.5 : increment),
+      suggestedWeight: roundToIncrement(topSet.weight + increment, step),
       suggestedSets: targetSets,
       reasonLabel: 'Hit the top of your rep range last time — try adding weight',
       lastSession,
+      readinessLevel: readiness?.level,
+    }
+  }
+
+  if (earnedProgression && readiness?.blockProgression) {
+    return {
+      suggestedWeight: topSet.weight,
+      suggestedSets: targetSets,
+      reasonLabel: 'Earned a weight increase, but recovery is down — repeat last weight instead',
+      lastSession,
+      readinessLevel: readiness.level,
+    }
+  }
+
+  if (readiness?.level === 'low') {
+    return {
+      suggestedWeight: roundToIncrement(topSet.weight * readiness.loadMultiplier, step),
+      suggestedSets: targetSets,
+      reasonLabel: 'Recovery is down — slightly under your last weight',
+      lastSession,
+      readinessLevel: readiness.level,
     }
   }
 
@@ -71,5 +100,6 @@ export async function getLoadSuggestion(
     suggestedSets: targetSets,
     reasonLabel: 'Same weight as last time — build toward the top of the rep range first',
     lastSession,
+    readinessLevel: readiness?.level,
   }
 }

@@ -6,12 +6,13 @@ import { Shell } from '../components/layout/Shell'
 import { Card, Button, EmptyState, Badge } from '../components/ui'
 import { SessionExerciseCard } from '../components/SessionExerciseCard'
 import { CrossTrainingForm } from '../components/CrossTrainingForm'
-import { SleepForm } from '../components/SleepForm'
+import { ReadinessCard } from '../components/ReadinessCard'
+import { getReadiness, type ReadinessSignal } from '../lib/readiness'
 import { fmtDate } from '../lib/dates'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { CrossTrainingType } from '../types'
 
-type Tab = 'gym' | CrossTrainingType | 'sleep'
+type Tab = 'gym' | CrossTrainingType
 
 export function Train() {
   const [params, setParams] = useSearchParams()
@@ -26,13 +27,12 @@ export function Train() {
     { value: 'bike', label: 'Bike' },
     { value: 'soccer', label: 'Soccer' },
     { value: 'volleyball', label: 'V-ball' },
-    { value: 'sleep', label: 'Sleep' },
   ]
 
   return (
     <Shell title="Train">
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-5 gap-1 bg-surface-2 rounded-xl p-1 border border-border">
+        <div className="grid grid-cols-4 gap-1 bg-surface-2 rounded-xl p-1 border border-border">
           {TABS.map((t) => (
             <button
               key={t.value}
@@ -44,7 +44,6 @@ export function Train() {
           ))}
         </div>
         {tab === 'gym' && <ResumeSessions />}
-        {tab === 'sleep' && <SleepForm />}
         {(tab === 'bike' || tab === 'soccer' || tab === 'volleyball') && <CrossTrainingForm type={tab} />}
       </div>
     </Shell>
@@ -86,6 +85,13 @@ function SessionView({ sessionId }: { sessionId: string }) {
   const sessionExercises = useLiveQuery(() => db.sessionExercises.where({ sessionId }).sortBy('order'), [sessionId])
   const allExercises = useLiveQuery(() => db.exercises.filter((e) => !e.archived).toArray(), [])
   const [showAdd, setShowAdd] = useState(false)
+  const [readiness, setReadiness] = useState<ReadinessSignal>()
+
+  // Read once for the session and share across cards — it's the same night for all of them.
+  const sessionDate = session?.date
+  useEffect(() => {
+    if (sessionDate) getReadiness(sessionDate).then(setReadiness)
+  }, [sessionDate])
 
   if (!session) return null
 
@@ -108,8 +114,10 @@ function SessionView({ sessionId }: { sessionId: string }) {
           </div>
         </div>
 
+        {readiness && readiness.level !== 'normal' && readiness.level !== 'unknown' && <ReadinessCard readiness={readiness} compact />}
+
         {(sessionExercises ?? []).map((se) => (
-          <SessionExerciseCard key={se.id} sessionExercise={se} isDeloadWeek={session.isDeloadWeek ?? false} />
+          <SessionExerciseCard key={se.id} sessionExercise={se} isDeloadWeek={session.isDeloadWeek ?? false} readiness={readiness} />
         ))}
 
         <Button variant="secondary" onClick={() => setShowAdd((v) => !v)}>{showAdd ? 'Cancel' : '+ Add exercise'}</Button>

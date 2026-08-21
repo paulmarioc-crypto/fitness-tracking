@@ -11,6 +11,7 @@ import { HealthFlags } from './pages/HealthFlags'
 import { Settings } from './pages/Settings'
 import { CrossAnalysis } from './pages/CrossAnalysis'
 import { WorkoutDetail } from './pages/WorkoutDetail'
+import { Sleep } from './pages/Sleep'
 
 function App() {
   const [ready, setReady] = useState(false)
@@ -33,6 +34,7 @@ function App() {
         <Route path="/" element={<Today />} />
         <Route path="/train" element={<Train />} />
         <Route path="/workout/:dayType" element={<WorkoutDetail />} />
+        <Route path="/sleep" element={<Sleep />} />
         <Route path="/exercises" element={<Exercises />} />
         <Route path="/exercises/:id" element={<ExerciseDetail />} />
         <Route path="/progress" element={<Progress />} />

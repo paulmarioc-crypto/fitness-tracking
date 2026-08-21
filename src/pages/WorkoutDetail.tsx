@@ -6,6 +6,8 @@ import { startSession, todayStr } from '../db/queries'
 import { computeProgramWeek, deloadAdjustedSets } from '../lib/program'
 import { getWeekRange, buildWeekWorkouts, slotForDayType } from '../lib/weekPlan'
 import { getLoadSuggestion } from '../lib/progression'
+import { getReadiness, type ReadinessSignal } from '../lib/readiness'
+import { ReadinessCard } from '../components/ReadinessCard'
 import { fmtDate } from '../lib/dates'
 import { Shell } from '../components/layout/Shell'
 import { Card, Button, Badge, EmptyState } from '../components/ui'
@@ -49,11 +51,16 @@ export function WorkoutDetail() {
   const session = weekWorkout?.session ?? null
 
   const [planned, setPlanned] = useState<PlannedExercise[]>([])
+  const [readiness, setReadiness] = useState<ReadinessSignal>()
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       if (!template || !exercises) return
+      // One readiness read for the whole workout — same night for every exercise.
+      const signal = await getReadiness(today)
+      if (cancelled) return
+      setReadiness(signal)
       const byId = new Map(exercises.map((e) => [e.id, e]))
       const rows = await Promise.all(
         template.exercises
@@ -63,7 +70,7 @@ export function WorkoutDetail() {
             const ex = byId.get(te.exerciseId)
             const sets = deloadAdjustedSets(te.targetSets, programWeek.isDeloadWeek)
             const suggestion = ex
-              ? await getLoadSuggestion(te.exerciseId, ex.category, te.targetRepRange, te.targetRIRRange, sets, programWeek.isDeloadWeek)
+              ? await getLoadSuggestion(te.exerciseId, ex.category, te.targetRepRange, te.targetRIRRange, sets, programWeek.isDeloadWeek, signal)
               : null
             // prescriptionLabel carries the plan's exact wording (tempo notes,
             // "/ leg", holds); strip its leading "N ×" so the deload-adjusted
@@ -92,7 +99,7 @@ export function WorkoutDetail() {
     return () => {
       cancelled = true
     }
-  }, [template, exercises, programWeek.isDeloadWeek])
+  }, [template, exercises, programWeek.isDeloadWeek, today])
 
   if (!templates) return null
 
@@ -142,6 +149,8 @@ export function WorkoutDetail() {
             <p className="text-sm text-text-dim mt-2">Completed {fmtDate(session.date, 'EEE, MMM d')}.</p>
           )}
         </Card>
+
+        {readiness && readiness.level !== 'normal' && <ReadinessCard readiness={readiness} compact />}
 
         <div>
           <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">

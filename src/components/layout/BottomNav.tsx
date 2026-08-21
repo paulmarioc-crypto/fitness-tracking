@@ -4,7 +4,8 @@ import clsx from 'clsx'
 const ITEMS = [
   { to: '/', label: 'Today', icon: HomeIcon },
   { to: '/train', label: 'Train', icon: DumbbellIcon },
-  { to: '/exercises', label: 'Exercises', icon: ListIcon },
+  { to: '/sleep', label: 'Sleep', icon: MoonIcon },
+  { to: '/exercises', label: 'Moves', icon: ListIcon },
   { to: '/progress', label: 'Progress', icon: ChartIcon },
   { to: '/more', label: 'More', icon: MoreIcon },
 ]
@@ -12,7 +13,7 @@ const ITEMS = [
 export function BottomNav() {
   return (
     <nav className="sticky bottom-0 z-20 bg-surface/95 backdrop-blur border-t border-border pb-[env(safe-area-inset-bottom)]">
-      <div className="max-w-2xl mx-auto grid grid-cols-5">
+      <div className="max-w-2xl mx-auto grid grid-cols-6">
         {ITEMS.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
@@ -71,6 +72,13 @@ function ChartIcon({ active }: IconProps) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={stroke(active)} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 20V10M12 20V4M20 20v-7" />
+    </svg>
+  )
+}
+function MoonIcon({ active }: IconProps) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={stroke(active)} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z" />
     </svg>
   )
 }
