@@ -8,6 +8,7 @@ import { getWeekRange, buildWeekWorkouts, slotForDayType } from '../lib/weekPlan
 import { getLoadSuggestion } from '../lib/progression'
 import { getReadiness, type ReadinessSignal } from '../lib/readiness'
 import { ReadinessCard } from '../components/ReadinessCard'
+import { TemplateEditor } from '../components/TemplateEditor'
 import { fmtDate } from '../lib/dates'
 import { Shell } from '../components/layout/Shell'
 import { Card, Button, Badge, EmptyState } from '../components/ui'
@@ -22,6 +23,7 @@ interface PlannedExercise {
   focus?: string
   suggestedWeight: number | null
   suggestionReason: string
+  isPercentOfMax: boolean
 }
 
 export function WorkoutDetail() {
@@ -52,6 +54,7 @@ export function WorkoutDetail() {
 
   const [planned, setPlanned] = useState<PlannedExercise[]>([])
   const [readiness, setReadiness] = useState<ReadinessSignal>()
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -70,7 +73,17 @@ export function WorkoutDetail() {
             const ex = byId.get(te.exerciseId)
             const sets = deloadAdjustedSets(te.targetSets, programWeek.isDeloadWeek)
             const suggestion = ex
-              ? await getLoadSuggestion(te.exerciseId, ex.category, te.targetRepRange, te.targetRIRRange, sets, programWeek.isDeloadWeek, signal)
+              ? await getLoadSuggestion(
+                  te.exerciseId,
+                  ex.category,
+                  te.targetRepRange,
+                  te.targetRIRRange,
+                  sets,
+                  programWeek.isDeloadWeek,
+                  signal,
+                  te.loadBasis,
+                  te.percentOfMax
+                )
               : null
             // prescriptionLabel carries the plan's exact wording (tempo notes,
             // "/ leg", holds); strip its leading "N ×" so the deload-adjusted
@@ -90,6 +103,7 @@ export function WorkoutDetail() {
               focus: te.focus,
               suggestedWeight: suggestion?.suggestedWeight ?? null,
               suggestionReason: suggestion?.reasonLabel ?? '',
+              isPercentOfMax: te.loadBasis === 'percent_of_max',
             } satisfies PlannedExercise
           })
       )
@@ -150,19 +164,31 @@ export function WorkoutDetail() {
           )}
         </Card>
 
-        {readiness && readiness.level !== 'normal' && <ReadinessCard readiness={readiness} compact />}
+        {readiness && (readiness.level === 'compromised' || readiness.level === 'low') && <ReadinessCard readiness={readiness} compact />}
 
         <div>
-          <h2 className="text-sm font-semibold text-text-dim mb-2 uppercase tracking-wide">
-            What to do — {planned.length} exercises
-          </h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-text-dim uppercase tracking-wide">
+              What to do — {planned.length} exercises
+            </h2>
+            <Button size="sm" variant="ghost" onClick={() => setEditing((v) => !v)}>
+              {editing ? 'Cancel' : 'Edit'}
+            </Button>
+          </div>
+
+          {editing ? (
+            <TemplateEditor template={template} onDone={() => setEditing(false)} />
+          ) : (
           <div className="flex flex-col gap-2">
             {planned.map((p, idx) => (
               <Card key={p.id} className="py-3">
                 <div className="flex items-start gap-3">
                   <span className="text-text-dim text-sm font-medium w-5 shrink-0 pt-0.5">{idx + 1}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium leading-snug">{p.name}</p>
+                    <p className="font-medium leading-snug flex items-center gap-2 flex-wrap">
+                      {p.name}
+                      {p.isPercentOfMax && <Badge tone="warn">Heavy</Badge>}
+                    </p>
                     <p className="text-lg font-semibold text-accent mt-0.5 leading-tight">
                       {p.sets} × {p.repsLabel}
                     </p>
@@ -180,16 +206,21 @@ export function WorkoutDetail() {
               </Card>
             ))}
           </div>
+          )}
         </div>
 
-        <Button size="lg" onClick={handleStart}>
-          {status === 'in_progress' ? 'Resume workout' : status === 'completed' ? 'Do this workout again' : 'Start workout'}
-        </Button>
+        {!editing && (
+          <>
+            <Button size="lg" onClick={handleStart}>
+              {status === 'in_progress' ? 'Resume workout' : status === 'completed' ? 'Do this workout again' : 'Start workout'}
+            </Button>
 
-        {status === 'completed' && session && (
-          <Button variant="secondary" onClick={() => navigate(`/train?session=${session.id}`)}>
-            Review logged sets
-          </Button>
+            {status === 'completed' && session && (
+              <Button variant="secondary" onClick={() => navigate(`/train?session=${session.id}`)}>
+                Review logged sets
+              </Button>
+            )}
+          </>
         )}
       </div>
     </Shell>

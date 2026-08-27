@@ -1,6 +1,7 @@
 import { getExerciseTrend } from './analytics'
+import { estimateOneRepMax } from './oneRepMax'
 import type { ReadinessLevel, ReadinessSignal } from './readiness'
-import type { RepRange, ExerciseCategory } from '../types'
+import type { RepRange, ExerciseCategory, LoadBasis } from '../types'
 
 export interface LoadSuggestion {
   suggestedWeight: number | null
@@ -9,6 +10,8 @@ export interface LoadSuggestion {
   lastSession?: { date: string; weight: number; reps: number; rir: number | null }
   /** Set when sleep data was available, so the UI can show why a load was eased. */
   readinessLevel?: ReadinessLevel
+  /** Estimated 1RM, present only for percent-of-max prescriptions. */
+  oneRepMax?: number
 }
 
 // Plate/dumbbell-realistic jump sizes for a "ready to progress" bump.
@@ -37,8 +40,40 @@ export async function getLoadSuggestion(
   targetRIRRange: RepRange | undefined,
   targetSets: number,
   isDeloadWeek: boolean,
-  readiness?: ReadinessSignal
+  readiness?: ReadinessSignal,
+  loadBasis?: LoadBasis,
+  percentOfMax?: number
 ): Promise<LoadSuggestion> {
+  const increment0 = INCREMENT_BY_CATEGORY[category] ?? 5
+  const step0 = increment0 >= 5 ? 2.5 : increment0
+
+  // Percentage-based prescriptions key off estimated 1RM rather than
+  // last session's working weight, so they're handled before the
+  // double-progression path.
+  if (loadBasis === 'percent_of_max' && percentOfMax) {
+    const estimate = await estimateOneRepMax(exerciseId)
+    if (!estimate) {
+      return {
+        suggestedWeight: null,
+        suggestedSets: targetSets,
+        reasonLabel: `${Math.round(percentOfMax * 100)}% of max — log a set to estimate your max first`,
+      }
+    }
+    // Deload trims the percentage; low readiness eases it further.
+    const effectivePct = percentOfMax * (isDeloadWeek ? 0.85 : 1) * (readiness?.loadMultiplier ?? 1)
+    const eased = isDeloadWeek || (readiness?.level === 'low')
+    return {
+      suggestedWeight: roundToIncrement(estimate.weight * effectivePct, step0),
+      suggestedSets: targetSets,
+      reasonLabel: `${Math.round(effectivePct * 100)}% of your estimated ${Math.round(estimate.weight)} lb max${
+        isDeloadWeek ? ' (deload)' : eased ? ' (eased — recovery down)' : ''
+      }`,
+      lastSession: estimate.fromSet,
+      readinessLevel: readiness?.level,
+      oneRepMax: Math.round(estimate.weight),
+    }
+  }
+
   const trend = await getExerciseTrend(exerciseId)
   if (trend.length === 0) {
     return { suggestedWeight: null, suggestedSets: targetSets, reasonLabel: 'No history yet — this session sets your baseline.' }

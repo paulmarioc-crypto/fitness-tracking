@@ -55,6 +55,14 @@ export class TrackerDB extends Dexie {
       .upgrade(async (tx) => {
         await tx.table('dayTemplates').clear()
       })
+
+    // Day templates gained a heavy percent-of-max leg lift; clear so
+    // seedIfEmpty rebuilds them with it.
+    this.version(4)
+      .stores({})
+      .upgrade(async (tx) => {
+        await tx.table('dayTemplates').clear()
+      })
   }
 }
 

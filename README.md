@@ -1,8 +1,8 @@
 # Athletic Development Tracker
 
 A mobile-first, offline-first fitness tracker built around a 12-week strength +
-cross-training plan (lifting, bike, soccer, volleyball) with knee/ankle health
-monitoring, progress analytics, and a lightweight daily streak.
+cross-training plan (lifting, bike, soccer, volleyball) with sleep-driven load
+suggestions, progress analytics, and a lightweight daily streak.
 
 All data lives in the browser (IndexedDB via Dexie) — nothing is sent to a
 server. Export your data any time from **More → Settings & export**.
@@ -70,6 +70,32 @@ Sleeping well never pushes the suggestion above what the plan's progression
 rule allows, because a good night isn't evidence you can skip a rep-range
 step.
 
+## Editing the plan
+
+Every workout is editable from its detail page (**Edit**): change target
+sets, rep range or RIR, swap an exercise for another from the library,
+reorder, remove, or add one. Two things make this safe:
+
+- Sessions **snapshot** their targets at start, so editing a template never
+  rewrites a workout you already logged.
+- Progression is derived from each exercise's own logged history, not from
+  anything stored on the template — so an exercise you add starts producing
+  weight suggestions immediately, with no extra setup.
+
+Each row also toggles its **load basis**:
+
+- **Normal progression** — double progression (default)
+- **% of max** — a fixed percentage of estimated 1RM, for heavy top-end work
+
+## Percent-of-max loading (`src/lib/oneRepMax.ts`)
+
+Used by the one heavy lift seeded into each leg day (**3 × 3–5 @ 80%** —
+barbell back squat on Lower A, leg press on Lower B). Estimated 1RM comes
+from your logged sets via Epley (`1RM = w × (1 + reps/30)`), counting
+reps-in-reserve as reps you could have done and ignoring sets over 12 reps
+where the formula gets unreliable. Deload weeks trim the percentage; low
+sleep readiness eases it further.
+
 ## Prescription accuracy (`src/lib/adherenceScore.ts`)
 
 Every logged set is scored 0-100% against what you were told to do: how
@@ -109,9 +135,8 @@ workout done correctly" shows up in a few places:
   (`manual` today; `google_fit` / `fitbit` reserved) so an external sync can
   be bolted on later — see `src/integrations/ActivityProvider.ts` for the
   interface that keeps ingestion separate from manual entry.
-- **HealthCheckin** — knee/ankle swelling, giving-way, left-shin rating
-  (0–10), fatigue/sleep notes. `src/lib/healthFlags.ts` surfaces 2+
-  consecutive swelling days, any giving-way episode, and a rising shin trend.
+- **HealthCheckin** — retained in the database and in the CSV export so
+  nothing previously logged is lost, but no longer surfaced in the UI.
 - **BodyWeightEntry** — logged a few times a week; the Progress page shows a
   rolling 7-day average.
 - **SleepEntry** — one per night: duration, HRV, resting HR, notes. Manually
@@ -121,22 +146,25 @@ workout done correctly" shows up in a few places:
 
 ## Pages
 
-- **Today (dashboard)** — streak, program week/block/deload banner,
-  health-flag banner, then **this week's four workouts** (Workout 1 · Upper A
-  through Workout 4 · Lower B, per the plan's Mon–Thu skeleton) each with its
-  weekday, exercise count and status (not started / in progress / completed)
-  plus an "N of 4 done" counter. Below that: quick cross-training log and the
-  daily check-in.
+- **Today (dashboard)** — streak, program week/block/deload banner, a
+  recovery banner when sleep is down, then **this week's four workouts**
+  (Workout 1 · Upper A through Workout 4 · Lower B, per the plan's Mon–Thu
+  skeleton) each with its weekday, exercise count and status (not started /
+  in progress / completed) plus an "N of 4 done" counter. Below that: the
+  quick cross-training log and what's been logged today.
 - **Workout detail** (tap any workout on the dashboard) — the prescription
   *before* you start: every exercise numbered, with its sets × reps shown
   large, the target RIR, the focus cue, and the suggested load for this
   session. Deload weeks show already-reduced set counts. Buttons to start,
-  resume, or review a completed session.
+  resume, or review a completed session. **Edit** opens an inline editor for
+  sets, rep range, RIR, load basis, exercise choice and order — see below.
 - **Train** — active session logging (each exercise shows its sets × reps and
   target RIR up front plus "Set 2 of 3" progress, with the suggested weight
   and inline per-set editing) and bike/soccer/volleyball quick-log forms
   (with avg/max BPM; bike also shows the Monday/Friday/Sunday 10-15 min
-  post-ride mobility checklist from `src/lib/bikeAddOns.ts`).
+  post-ride mobility checklist from `src/lib/bikeAddOns.ts` — always
+  offered on a bike log, with the weekday-matched routine preselected and
+  the other two a tap away).
 - **Sleep** — its own tab: today's recovery status and exactly which markers
   are off, the log form, duration and HRV/resting-HR charts, and recent
   nights against your baseline.
@@ -150,7 +178,5 @@ workout done correctly" shows up in a few places:
   minutes by activity (bike/soccer/volleyball), weekly gym volume, avg/max
   BPM (+ power for bike) per session for bike/soccer/volleyball,
   soccer/volleyball intensity mix.
-- **Health Flags** (More → Health flags) — the swelling/giving-way/shin
-  dashboard.
 - **Settings** (More → Settings & export) — program start date, CSV/JSON
   export, data counts, reset.

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { addCrossTraining } from '../db/queries'
 import { todayStr } from '../db/queries'
-import { getAddOnForDate } from '../lib/bikeAddOns'
+import { BIKE_ADDONS, getAddOnById, getDefaultAddOnForDate, isScheduledBikeDay } from '../lib/bikeAddOns'
 import { Card, Button, TextField, NumberField, SegmentedControl } from './ui'
 import type { CrossTrainingType, Intensity } from '../types'
 
@@ -17,12 +17,15 @@ export function CrossTrainingForm({ type }: { type: CrossTrainingType }) {
   const [notes, setNotes] = useState('')
   const [saved, setSaved] = useState(false)
   const [completedAddOn, setCompletedAddOn] = useState<Set<string>>(new Set())
+  const [addOnId, setAddOnId] = useState<string | null>(null)
 
   const isBike = type === 'bike'
-  const addOn = isBike ? getAddOnForDate(date) : null
+  // Always offered on bike days; the date only picks which variant is preselected.
+  const addOn = isBike ? (addOnId ? getAddOnById(addOnId) ?? getDefaultAddOnForDate(date) : getDefaultAddOnForDate(date)) : null
 
   useEffect(() => {
     setCompletedAddOn(new Set())
+    setAddOnId(null)
   }, [date])
 
   function toggleAddOnItem(name: string) {
@@ -47,6 +50,7 @@ export function CrossTrainingForm({ type }: { type: CrossTrainingType }) {
       avgPower: isBike && avgPower ? parseInt(avgPower, 10) : undefined,
       notes: notes || undefined,
       bikeAddOnCompleted: addOn ? Array.from(completedAddOn) : undefined,
+      bikeAddOnVariant: addOn?.id,
       source: 'manual',
     })
     setDuration('')
@@ -94,10 +98,34 @@ export function CrossTrainingForm({ type }: { type: CrossTrainingType }) {
 
       {addOn && (
         <div className="bg-surface-2 rounded-lg p-3">
-          <p className="text-sm font-medium mb-0.5">
-            {addOn.day} add-on: {addOn.title} {addOn.rounds ? `(${addOn.rounds} rounds)` : ''}
+          <p className="text-sm font-medium">15-min add-on, right after the ride</p>
+          <p className="text-xs text-text-dim mb-2">
+            {isScheduledBikeDay(date)
+              ? `${addOn.day} is a bike day in your plan — this routine is the match.`
+              : 'Off-schedule ride — pick whichever routine fits.'}
           </p>
-          <p className="text-xs text-text-dim mb-2">10-15 min, right after the ride — check off what you did.</p>
+
+          <div className="grid grid-cols-3 gap-1 mb-2">
+            {BIKE_ADDONS.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => {
+                  setAddOnId(v.id)
+                  setCompletedAddOn(new Set())
+                }}
+                className={`px-1 py-1.5 rounded-lg text-[11px] font-medium leading-tight transition ${
+                  addOn.id === v.id ? 'bg-accent text-black' : 'bg-surface border border-border text-text-dim'
+                }`}
+              >
+                {v.title}
+              </button>
+            ))}
+          </div>
+
+          <p className="text-xs text-text-dim mb-1.5">
+            {addOn.title}
+            {addOn.rounds ? ` · ${addOn.rounds} rounds` : ''} — check off what you did.
+          </p>
           <div className="flex flex-col gap-1.5">
             {addOn.exercises.map((ex) => {
               const done = completedAddOn.has(ex.name)

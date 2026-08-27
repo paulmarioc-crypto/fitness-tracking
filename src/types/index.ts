@@ -32,6 +32,13 @@ export interface ExerciseMedia {
   updatedAt: string
 }
 
+/**
+ * How a working load is chosen for a prescription.
+ * - `double_progression` (default): add reps to the top of the range, then add weight.
+ * - `percent_of_max`: a fixed percentage of estimated 1RM, for heavy top-end work.
+ */
+export type LoadBasis = 'double_progression' | 'percent_of_max'
+
 /** A prescribed exercise inside a reusable day template (e.g. "Upper A"). */
 export interface DayTemplateExercise {
   id: string
@@ -40,6 +47,9 @@ export interface DayTemplateExercise {
   targetSets: number
   targetRepRange?: RepRange
   targetRIRRange?: RepRange
+  loadBasis?: LoadBasis
+  /** 0-1, used when loadBasis is 'percent_of_max' (0.8 = 80%). */
+  percentOfMax?: number
   /** Raw "sets x reps" text from the program (e.g. "3 x 8 / leg, 3-sec lowering") for display fidelity. */
   prescriptionLabel?: string
   focus?: string
@@ -92,6 +102,8 @@ export interface SessionExercise {
   targetRepRange?: RepRange
   targetRIRRange?: RepRange
   prescriptionLabel?: string
+  loadBasis?: LoadBasis
+  percentOfMax?: number
   /** Suggested weight at the moment this exercise was added to the session — a stable snapshot for scoring accuracy later, even if later sessions change the suggestion. */
   suggestedWeight?: number | null
 }
@@ -124,8 +136,10 @@ export interface CrossTrainingEntry {
   maxHR?: number
   avgPower?: number
   notes?: string
-  /** Names of the completed exercises from the Monday/Friday/Sunday post-bike mobility add-on (see lib/bikeAddOns.ts), when type is 'bike'. */
+  /** Names of the completed exercises from the post-bike mobility add-on (see lib/bikeAddOns.ts), when type is 'bike'. */
   bikeAddOnCompleted?: string[]
+  /** Which add-on variant was used, so the summary doesn't have to re-derive it from the weekday. */
+  bikeAddOnVariant?: string
   source: DataSource
 }
 

@@ -7,7 +7,6 @@ import { Exercises } from './pages/Exercises'
 import { ExerciseDetail } from './pages/ExerciseDetail'
 import { Progress } from './pages/Progress'
 import { More } from './pages/More'
-import { HealthFlags } from './pages/HealthFlags'
 import { Settings } from './pages/Settings'
 import { CrossAnalysis } from './pages/CrossAnalysis'
 import { WorkoutDetail } from './pages/WorkoutDetail'
@@ -39,7 +38,6 @@ function App() {
         <Route path="/exercises/:id" element={<ExerciseDetail />} />
         <Route path="/progress" element={<Progress />} />
         <Route path="/more" element={<More />} />
-        <Route path="/more/health" element={<HealthFlags />} />
         <Route path="/more/settings" element={<Settings />} />
         <Route path="/cross-analysis" element={<CrossAnalysis />} />
       </Routes>

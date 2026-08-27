@@ -1,5 +1,5 @@
 import { db } from './schema'
-import type { Exercise, DayTemplate, ExerciseCategory, RepRange } from '../types'
+import type { Exercise, DayTemplate, ExerciseCategory, RepRange, LoadBasis } from '../types'
 
 const uid = () => crypto.randomUUID()
 
@@ -48,6 +48,10 @@ const CATALOG: SeedExerciseDef[] = [
   { name: 'Spring-ankle isometric', category: 'mobility', focus: 'Ankle stiffness/control', repRange: { min: 20, max: 20 } },
   { name: 'Single-leg balance + reach', category: 'mobility', focus: 'Dynamic balance', repRange: { min: 8, max: 12 } },
   { name: 'Low-amplitude skater hop to stick landing', category: 'mobility', focus: 'Controlled lateral landing', repRange: { min: 4, max: 4 } },
+  // Heavy top-end leg work, prescribed as a percentage of estimated max
+  // rather than by double progression.
+  { name: 'Barbell back squat', category: 'lower', focus: 'Heavy bilateral strength', repRange: { min: 3, max: 5 } },
+  { name: 'Leg press', category: 'lower', focus: 'Heavy leg strength', repRange: { min: 3, max: 5 } },
 ]
 
 interface TemplateExerciseDef {
@@ -57,7 +61,21 @@ interface TemplateExerciseDef {
   label: string // raw "sets x reps" text from the plan
   focus: string
   rir?: RepRange
+  loadBasis?: LoadBasis
+  percentOfMax?: number
 }
+
+/** One heavy lift per leg day, loaded off estimated 1RM instead of double progression. */
+const HEAVY_LEG_LIFT = (name: string): TemplateExerciseDef => ({
+  name,
+  sets: 3,
+  reps: { min: 3, max: 5 },
+  label: '3 × 3–5 @ 80% of max',
+  focus: 'Heavy strength',
+  rir: { min: 2, max: 3 },
+  loadBasis: 'percent_of_max',
+  percentOfMax: 0.8,
+})
 
 interface TemplateDef {
   dayType: string
@@ -96,6 +114,7 @@ const TEMPLATE_DEFS: TemplateDef[] = [
     block: 1,
     blockLabel: BLOCK_LABELS[1],
     exercises: [
+      HEAVY_LEG_LIFT('Barbell back squat'),
       { name: 'Hip thrust', sets: 3, reps: { min: 8, max: 10 }, label: '3 × 8–10', focus: 'Glute strength' },
       { name: 'Bulgarian split squat', sets: 3, reps: { min: 8, max: 8 }, label: '3 × 8 / leg', focus: 'Single-leg strength' },
       { name: 'Single-leg RDL', sets: 3, reps: { min: 8, max: 8 }, label: '3 × 8 / leg', focus: 'Glute/hamstring + balance' },
@@ -122,6 +141,7 @@ const TEMPLATE_DEFS: TemplateDef[] = [
     block: 1,
     blockLabel: BLOCK_LABELS[1],
     exercises: [
+      HEAVY_LEG_LIFT('Leg press'),
       { name: 'Spanish squat', sets: 3, reps: { min: 10, max: 10 }, label: '3 × 10 + 20-sec final hold', focus: 'Quadriceps/knee capacity', rir: LOWER_B_RIR },
       { name: 'Hamstring curl', sets: 3, reps: { min: 10, max: 15 }, label: '3 × 10–15', focus: 'Hamstrings', rir: LOWER_B_RIR },
       { name: 'Hip abduction', sets: 3, reps: { min: 15, max: 20 }, label: '3 × 15–20', focus: 'Glute medius', rir: LOWER_B_RIR },
@@ -149,6 +169,7 @@ const TEMPLATE_DEFS: TemplateDef[] = [
     block: 2,
     blockLabel: BLOCK_LABELS[2],
     exercises: [
+      HEAVY_LEG_LIFT('Barbell back squat'),
       { name: 'Hip thrust', sets: 4, reps: { min: 6, max: 8 }, label: '4 × 6–8', focus: 'Heavier glute strength' },
       { name: 'Bulgarian split squat', sets: 3, reps: { min: 6, max: 8 }, label: '3 × 6–8 / leg, 3-sec lowering', focus: 'Unilateral eccentric control' },
       { name: 'Single-leg RDL', sets: 3, reps: { min: 6, max: 8 }, label: '3 × 6–8 / leg', focus: 'Posterior-chain strength' },
@@ -175,6 +196,7 @@ const TEMPLATE_DEFS: TemplateDef[] = [
     block: 2,
     blockLabel: BLOCK_LABELS[2],
     exercises: [
+      HEAVY_LEG_LIFT('Leg press'),
       { name: 'Reverse Nordic isometric', sets: 3, reps: { min: 5, max: 5 }, label: '2–3 × 5, 5-sec hold', focus: 'Quadriceps capacity', rir: LOWER_B_RIR },
       { name: 'Hamstring curl', sets: 3, reps: { min: 8, max: 12 }, label: '3 × 8–12', focus: 'Hamstrings', rir: LOWER_B_RIR },
       { name: 'Hip abduction', sets: 3, reps: { min: 12, max: 20 }, label: '3 × 12–20', focus: 'Glute medius', rir: LOWER_B_RIR },
@@ -202,6 +224,7 @@ const TEMPLATE_DEFS: TemplateDef[] = [
     block: 3,
     blockLabel: BLOCK_LABELS[3],
     exercises: [
+      HEAVY_LEG_LIFT('Barbell back squat'),
       { name: 'Hip thrust', sets: 4, reps: { min: 5, max: 8 }, label: '4 × 5–8', focus: 'Glute strength' },
       { name: 'Bulgarian split squat', sets: 3, reps: { min: 6, max: 8 }, label: '3 × 6–8 / leg', focus: 'Unilateral strength' },
       { name: 'Single-leg RDL', sets: 3, reps: { min: 6, max: 8 }, label: '3 × 6–8 / leg', focus: 'Posterior-chain + balance' },
@@ -228,6 +251,7 @@ const TEMPLATE_DEFS: TemplateDef[] = [
     block: 3,
     blockLabel: BLOCK_LABELS[3],
     exercises: [
+      HEAVY_LEG_LIFT('Leg press'),
       { name: 'Spanish squat', sets: 3, reps: { min: 10, max: 10 }, label: '2–3 × 10 + hold', focus: 'Knee capacity', rir: LOWER_B_RIR },
       { name: 'Hamstring curl', sets: 3, reps: { min: 8, max: 12 }, label: '3 × 8–12', focus: 'Hamstrings', rir: LOWER_B_RIR },
       { name: 'Hip abduction', sets: 3, reps: { min: 12, max: 15 }, label: '3 × 12–15', focus: 'Glute medius', rir: LOWER_B_RIR },
@@ -298,6 +322,8 @@ export async function seedIfEmpty() {
             targetRIRRange: e.rir ?? DEFAULT_RIR,
             prescriptionLabel: e.label,
             focus: e.focus,
+            loadBasis: e.loadBasis,
+            percentOfMax: e.percentOfMax,
           }
         }),
       })

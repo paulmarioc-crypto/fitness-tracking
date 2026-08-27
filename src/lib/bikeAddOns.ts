@@ -12,6 +12,7 @@ export interface AddOnExercise {
 }
 
 export interface BikeAddOnVariant {
+  id: 'ankle' | 'hip_knee' | 'recovery'
   day: 'Monday' | 'Friday' | 'Sunday'
   title: string
   rounds?: number
@@ -20,6 +21,7 @@ export interface BikeAddOnVariant {
 
 export const BIKE_ADDONS: BikeAddOnVariant[] = [
   {
+    id: 'ankle',
     day: 'Monday',
     title: 'Ankle Mobility + Control',
     rounds: 2,
@@ -32,6 +34,7 @@ export const BIKE_ADDONS: BikeAddOnVariant[] = [
     ],
   },
   {
+    id: 'hip_knee',
     day: 'Friday',
     title: 'Hip/Knee Mobility',
     rounds: 2,
@@ -44,6 +47,7 @@ export const BIKE_ADDONS: BikeAddOnVariant[] = [
     ],
   },
   {
+    id: 'recovery',
     day: 'Sunday',
     title: 'Easy Recovery Mobility',
     exercises: [
@@ -56,11 +60,24 @@ export const BIKE_ADDONS: BikeAddOnVariant[] = [
   },
 ]
 
-/** Which add-on variant (if any) applies to a bike session on this date, per the plan's Mon/Fri/Sun bike schedule. */
-export function getAddOnForDate(dateStr: string): BikeAddOnVariant | null {
+export function getAddOnById(id: string): BikeAddOnVariant | undefined {
+  return BIKE_ADDONS.find((v) => v.id === id)
+}
+
+/**
+ * The variant the plan pairs with this weekday (Mon/Fri/Sun bike days).
+ * Only a *default* — the add-on is always offered regardless of weekday,
+ * because riding on an off-schedule day is no reason to hide the routine.
+ */
+export function getDefaultAddOnForDate(dateStr: string): BikeAddOnVariant {
   const dow = getDay(parseISO(dateStr)) // 0 = Sunday, 1 = Monday, ..., 5 = Friday
-  if (dow === 1) return BIKE_ADDONS[0]
-  if (dow === 5) return BIKE_ADDONS[1]
-  if (dow === 0) return BIKE_ADDONS[2]
-  return null
+  if (dow === 5 || dow === 6) return BIKE_ADDONS[1] // Fri/Sat -> hip/knee
+  if (dow === 0) return BIKE_ADDONS[2] // Sun -> easy recovery
+  return BIKE_ADDONS[0] // Mon-Thu -> ankle mobility + control
+}
+
+/** True when the plan actually schedules a bike session on this weekday. */
+export function isScheduledBikeDay(dateStr: string): boolean {
+  const dow = getDay(parseISO(dateStr))
+  return dow === 1 || dow === 5 || dow === 0
 }

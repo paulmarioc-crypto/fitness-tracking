@@ -3,7 +3,6 @@ import { Shell } from '../components/layout/Shell'
 import { Card } from '../components/ui'
 
 const ITEMS = [
-  { to: '/more/health', label: 'Health flags', hint: 'Swelling, giving-way, left-shin trend', icon: '🩹' },
   { to: '/cross-analysis', label: 'Cross-training analysis', hint: 'Bike, soccer, volleyball, gym', icon: '📊' },
   { to: '/more/settings', label: 'Settings & export', hint: 'CSV/JSON export, data management', icon: '⚙️' },
 ]

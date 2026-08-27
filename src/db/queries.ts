@@ -5,6 +5,7 @@ import { deloadAdjustedSets } from '../lib/program'
 import type {
   Exercise,
   DayTemplate,
+  DayTemplateExercise,
   WorkoutSession,
   SessionExercise,
   SetEntry,
@@ -31,6 +32,32 @@ export async function updateExercise(id: string, changes: Partial<Exercise>) {
 
 export async function archiveExercise(id: string) {
   await db.exercises.update(id, { archived: true })
+}
+
+// ---- Day templates (user-editable prescriptions) ----
+/**
+ * Edits apply to future sessions only: a session snapshots its targets at
+ * start, so changing a template never rewrites what you already logged.
+ * Any exercise added here automatically picks up load suggestions, because
+ * progression is derived from that exercise's own history rather than from
+ * anything stored on the template.
+ */
+export async function updateTemplateExercises(templateId: string, exercises: DayTemplateExercise[]) {
+  const reordered = exercises.map((e, idx) => ({ ...e, order: idx }))
+  await db.dayTemplates.update(templateId, { exercises: reordered })
+}
+
+export function makeTemplateExercise(exerciseId: string, exercise?: Exercise): DayTemplateExercise {
+  return {
+    id: uid(),
+    exerciseId,
+    order: 0,
+    targetSets: 3,
+    targetRepRange: exercise?.targetRepRange ?? { min: 8, max: 12 },
+    targetRIRRange: exercise?.targetRIRRange ?? { min: 1, max: 2 },
+    focus: exercise?.notes,
+    loadBasis: 'double_progression',
+  }
 }
 
 // ---- Sessions ----
@@ -60,7 +87,17 @@ export async function startSession(dayTemplate: DayTemplate | null, dayTypeName:
         const exercise = await db.exercises.get(te.exerciseId)
         const targetSets = deloadAdjustedSets(te.targetSets, isDeloadWeek)
         const suggestion = exercise
-          ? await getLoadSuggestion(te.exerciseId, exercise.category, te.targetRepRange, te.targetRIRRange, targetSets, isDeloadWeek, readiness)
+          ? await getLoadSuggestion(
+              te.exerciseId,
+              exercise.category,
+              te.targetRepRange,
+              te.targetRIRRange,
+              targetSets,
+              isDeloadWeek,
+              readiness,
+              te.loadBasis,
+              te.percentOfMax
+            )
           : null
         return {
           id: uid(),
@@ -73,6 +110,8 @@ export async function startSession(dayTemplate: DayTemplate | null, dayTypeName:
           targetRepRange: te.targetRepRange,
           targetRIRRange: te.targetRIRRange,
           prescriptionLabel: te.prescriptionLabel,
+          loadBasis: te.loadBasis,
+          percentOfMax: te.percentOfMax,
           suggestedWeight: suggestion?.suggestedWeight ?? null,
         }
       })

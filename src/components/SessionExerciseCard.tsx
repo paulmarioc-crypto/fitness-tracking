@@ -34,7 +34,9 @@ export function SessionExerciseCard({
       sessionExercise.targetRIRRange,
       sessionExercise.targetSets ?? 3,
       isDeloadWeek,
-      readiness
+      readiness,
+      sessionExercise.loadBasis,
+      sessionExercise.percentOfMax
     ).then(setSuggestion)
   }, [exercise, sessionExercise, isDeloadWeek, readiness])
 
